@@ -1,0 +1,33 @@
+﻿@page "/clientlist";
+@using GCOM2_Test.Data;
+@inject HttpClient Http;
+@inject RandomUserService RandomUserService;
+
+ <DataTable></DataTable>
+
+
+<h1>Random User</h1>
+
+@*@foreach(User user in UserCollection)
+{
+    <p>Name: @user.Name.First @user.Name.Last</p>
+    <p>Email: @user.Email</p>
+    <p>Location: @user.Location.City, @user.Location.Country</p>
+}*@
+
+
+@code {
+    private User user = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var users = await RandomUserService.GetRandomUsersAsync();
+        if (users.Any())
+        {
+            user = users.First();
+        }
+        Console.WriteLine(user);
+    }
+
+}
+

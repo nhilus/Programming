@@ -1,0 +1,143 @@
+﻿@page "/menu-bar/data-binding"
+@using Syncfusion.Blazor.Navigations
+@inject Microsoft.AspNetCore.Components.NavigationManager UriHelper;
+
+<div class="menu-control">
+    <SfMenu Items="@data">
+        <MenuFieldSettings Text="Value" Children="Options"></MenuFieldSettings>
+        <MenuTemplates TValue="CategoryModel">
+            <Template>
+                @{
+                    var MenuItems = context;
+                    if (MenuItems.Value != null && MenuItems.Count == null && MenuItems.Url == null)
+                    {
+                        <div>@MenuItems.Value</div>
+                    }
+                    else if (MenuItems.Value != null)
+                    {
+                        <div style="width: 100%;display: flex;justify-content: space-between;">
+                            @{
+                                <NavLink style="text-decoration:none" href="@MenuItems.Url">@MenuItems.Value</NavLink>
+                            }
+                        </div>
+                    }
+                }
+            </Template>
+        </MenuTemplates>
+    </SfMenu>
+</div>
+@code {
+    private List<CategoryModel> data = new List<CategoryModel>
+    {
+        new CategoryModel {
+            Value = "Meu Menu",
+            Options = new List<CategoryModel>
+            {
+                new CategoryModel { Value= "Clientes", Options = new List<CategoryModel>
+                    {
+                        new CategoryModel { Value= "Lista Clientes", Url= "/clientlist" },
+                        new CategoryModel { Value= "Dados Clientes", Url= "/fetchdata" },
+                        new CategoryModel { Value= "Sales Leads", Url= "mvc" }
+                    } 
+                },
+            },
+        },
+        new CategoryModel {
+            Value = "Entrevistas",
+            Options = new List<CategoryModel>
+            {
+                new CategoryModel { Value= "Entrevistas", Count= "1200+" },
+            }
+        },
+
+        new CategoryModel { Value = "Recs/Exp." },
+        new CategoryModel { Value = "Entrs/Imp." },
+        new CategoryModel { Value = "Operação" },
+        new CategoryModel { Value = "Financeira" },
+        new CategoryModel { Value = "Facturação" },
+        new CategoryModel { Value = "Reclamações" },
+        new CategoryModel { Value = "Admin" }
+
+    };
+    private class CategoryModel
+    {
+        public List<CategoryModel> Options { get; set; }
+        public string Value { get; set; }
+        public string Url { get; set; }
+        public string Count { get; set; }
+        public string About { get; set; }
+        public string Id { get; set; }
+    }
+}
+<style>
+    .menu-control {
+        margin-top: 45px;
+        text-align: center;
+    }
+    /* Common ul & li styles */
+    .mobile .e-menu-container ul.e-ul,
+    .e-menu-container ul.e-ul {
+        padding: 0;
+    }
+
+        .mobile .e-menu-container ul.e-ul .e-menu-item,
+        .e-menu-container ul.e-ul .e-menu-item {
+            display: flex;
+            padding: 0 10px;
+            outline-color: transparent;
+        }
+    /** Avatar customization */
+    .e-menu-container ul .e-menu-item .e-avatar {
+        background-color: inherit;
+        font-size: 8px;
+        margin-right: 8px;
+        align-self: center;
+        width: auto;
+        overflow: visible;
+    }
+
+    .mobile .e-menu-container ul .e-menu-item .e-avatar {
+        font-size: 10px;
+    }
+    /** Badge customization */
+    .e-menu-container ul .e-menu-item .e-badge {
+        margin-left: 10px;
+        align-self: center;
+        overflow: visible;
+    }
+    /** Card customization */
+    .e-menu-container ul.e-ul .e-menu-item .e-card {
+        width: 290px;
+        font-size: inherit;
+        background-color: inherit;
+        border-color: transparent;
+    }
+
+    .mobile .e-menu-container ul.e-ul .e-menu-item .e-card {
+        width: 320px;
+    }
+
+    .e-menu-container ul.e-ul .e-menu-item .e-card .e-card-content {
+        white-space: normal;
+        color: inherit;
+        padding-top: 0;
+        text-align: justify;
+        font-size: inherit;
+    }
+
+    .e-menu-container ul.e-ul .e-menu-item#about {
+        height: auto;
+        padding: 0;
+    }
+
+        .e-menu-container ul.e-ul .e-menu-item#about.e-focused {
+            background-color: transparent;
+            outline-color: transparent;
+            pointer-events: none;
+        }
+
+    .e-menu-container .e-ul .e-menu-item {
+        height: 36px;
+        line-height: 36px;
+    }
+</style>

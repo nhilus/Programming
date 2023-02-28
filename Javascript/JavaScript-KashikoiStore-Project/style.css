@@ -1,0 +1,492 @@
+/*#region cssreset*/
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Remove default margin */
+body,
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+blockquote,
+dl,
+dd {
+  margin: 0;
+}
+
+/* Remove list styles on ul, ol elements with a list role, which suggests default styling will be removed */
+ul[role="list"],
+ol[role="list"] {
+  list-style: none;
+}
+
+/* Set core root defaults */
+html:focus-within {
+  scroll-behavior: smooth;
+}
+
+/* Set core body defaults */
+body {
+  min-height: 100vh;
+  text-rendering: optimizeSpeed;
+  line-height: 1.5;
+}
+
+/* A elements that don't have a class get default styles */
+a{
+  text-decoration: none;
+}
+
+/* Make images easier to work with */
+img,
+picture {
+  max-width: 100%;
+  display: block;
+}
+
+/* Inherit fonts for inputs and buttons */
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+/*#endregion cssreset*/
+
+#app {
+  font-family: Avenir, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: center;
+  color: #2c3e50;
+  margin-top: 60px;
+}
+
+/*#region Mobile--------------------------------------------------------------------------------------------------*/
+
+body{
+  font-family: 'Nunito', sans-serif;
+  grid-template-areas: 
+    "navbar"
+    "main"
+    "footer";
+}
+
+/*#region Navbar--------------------------------------------------------------------------------------------------*/
+.navbar{
+  /* background-color:#08121C; */
+  background: linear-gradient(to right, #E9CD9E,#BBA176,#4D617A,#1F3947, #08121C);
+  grid-area: navbar;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80px;
+  grid-area: navbar;
+}
+
+
+.iconsNav1{
+  display: none;
+  color: white;
+  font-size: 20px;
+}
+
+
+.logoNav a{
+  display: flex;
+  text-align: center;
+  color: white;
+  font-size: 25px;
+  text-shadow: 0 0 15px #D0B58A;
+  font-family: 'Wallpoet', cursive;
+  margin-top: 5%;
+}
+
+
+.iconsNav2{
+  display: none;
+  color: white;
+}
+
+
+
+/*#endregion Navbar--------------------------------------------------------------------------------------------------*/
+
+/*#region Main----------------------------------------------------------------------------------------------------*/
+
+
+  /*---------------------------------------------------DIV SHOW-------------------------------------------------*/
+  .show{
+  background-image: url("/src/imgs/showImg.jpg");
+  background-size: cover;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  }
+
+  .phrases {
+  margin: 50px;
+  position:relative;
+  color: rgb(255, 255, 255);
+  font-size: 4em;
+  filter: contrast(15);
+  }
+
+  .phrase {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: switch 8s infinite ease-in-out;
+  min-width: 100%;
+  margin: auto;
+  }
+
+  .phrase:nth-child(1) {
+  animation-delay: -8s;
+  }
+
+  .phrase:nth-child(2) {
+  animation-delay: -6s;
+  }
+
+  .phrase:nth-child(3) {
+  animation-delay: -4s;
+  }
+
+  @keyframes switch {
+    0%,
+    5%,
+    100% {
+    filter: blur(0px);
+    opacity: 1;
+    }
+
+    50%,
+    80% {
+    filter: blur(180px);
+    opacity: 0;
+    }
+  }
+
+  /*---------------------------------------------------DIV CONTACT-------------------------------------------------*/
+
+  #contact{
+    background-color: #08121C;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .h1{
+    color: white;
+    padding: 30px;
+  }
+
+  .formMap{
+    padding: 60px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  form{
+    width: 100%;
+    background: white;
+    border-radius: 3px;
+    padding: 20px;
+  }
+
+  #map {
+    width: 100%;
+    height: 550px;
+    border-radius: 3px;
+  }
+
+  label{
+    display: block;
+    margin: 20px;
+  }
+
+  .submitButton{
+    border-radius: 5px;
+  }
+  input, textarea{
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    outline: none;
+    resize: none;
+    border: none;
+    border-bottom: 1px solid #d3d3d3;
+  }
+
+  input[type="text"]:focus, textarea:focus{
+    border-bottom: 2px solid #D0B58A;
+  }
+
+  textarea::-webkit-scrollbar{
+    width: 4px;
+  }
+
+  textarea::-webkit-scrollbar-thumb{
+    background-color: #D0B58A;
+  }
+
+  .error{
+    color: red;
+  }
+
+  .error-border{
+    border-bottom: 1px solid red;
+  }
+
+  #success{
+    color: #D0B58A;
+  }
+
+  /*---------------------------------------------------DIV SUPPORT-----------------------------------------------*/
+
+    .support{
+      background-image: url("/src/imgs/support-img.jpg");
+      background-size: cover;
+    }
+
+    .support h1{
+      color: white;
+      padding: 50px;
+      text-align: center;
+    }
+
+    .supportCards{
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      width: 100%;
+      gap: 50px;
+      padding-bottom: 110px;
+    }
+
+    .card{
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      border-radius: 10px;
+      max-width: 80%;
+      background:rgba(255, 255, 255, 0.637);
+      
+    }
+    
+    .cardTop{
+      border-radius: 10px;
+      background: linear-gradient(to right, #E9CD9E,#BBA176,#4D617A,#1F3947, #08121C);
+    }
+
+    .cardTop img{
+      border-radius: 50%;
+      border: 5px solid white;
+      margin: 6px;
+    }
+
+    .cardTop h3{
+      margin: 10px;
+      color: white;
+    }
+
+    .cardInfo h4{
+      margin: 20px;
+    }
+
+    .cardInfo p{
+      margin: 20px;
+    }
+/*#endregion main--------------------------------------------------------------------------------------------------*/
+
+/*#region Footer--------------------------------------------------------------------------------------------------*/
+
+.floatFooter{
+  position: fixed;
+  bottom: 90px;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background-color: #D0B58A;
+  margin: 60px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ulIcons{
+  display: flex;
+  gap: 30px;
+  padding: 10px;
+}
+
+.ulIcons a{
+color: aliceblue;
+font-size: 40px;
+}
+
+.footer{
+  position: sticky;
+  text-align: center;
+  background: linear-gradient(to right, #E9CD9E,#BBA176,#4D617A,#1F3947, #08121C);
+  /* background-color: #08121C; */
+  color: aliceblue;
+  padding: 20px;
+  grid-area: footer;
+}
+
+.logoFooter{
+  font-family: 'Wallpoet', cursive;
+  display: none;
+}
+/*#endregion Footer--------------------------------------------------------------------------------------------------*/
+
+/*#endregion Mobile--------------------------------------------------------------------------------------------------*/
+
+
+/*#region Ipad--------------------------------------------------------------------------------------------------*/
+@media (min-width: 768px ){
+  body{
+      grid-template-rows: 120px 1000px 75px;
+      grid-template-areas: 
+          "navbar navbar"
+          "main main"
+          "footer footer";
+      }
+
+
+  }
+/*#endregion Ipad--------------------------------------------------------------------------------------------------*/
+
+
+/*#region Desktop--------------------------------------------------------------------------------------------------*/
+@media (min-width: 992px ){
+  body{
+    grid-template-rows: 120px 1000px 75px;
+    grid-template-areas: 
+    "navbar navbar navbar navbar"
+    "main main main main"
+    "footer footer footer footer";
+    }
+
+    /*----------------------------------NAVBAR----------------------------------*/
+
+    .navbar{
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .iconsNav1{
+      display: flex;
+      color: aliceblue;
+      font-size: 25px;
+    }
+
+    .iconsNav1 a{
+      color: aliceblue;
+    }
+
+    .logoNav a{
+      margin-top: 0;
+    }
+    
+    .iconsNav2{
+      display: flex;
+      color: aliceblue;
+      margin: 30px;
+      font-size: 25px;
+    }
+
+    .iconsNav2 a{
+      color:aliceblue;
+    }
+
+    /*-----------------------------------MAIN-----------------------------------*/
+
+    .show{
+      background-image: url("/src/imgs/showImg.jpg");
+      background-size: cover;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .formMap{
+      flex-direction: row;
+      max-width: 1200px;
+    }
+
+     /*---------------------------------------------------DIV SUPPORT-----------------------------------------------*/
+
+
+    .supportCards{
+      display: flex;
+      width: 100%;
+      flex-direction: row;
+      justify-content: center;
+      gap: 10px;
+      padding-bottom: 0;
+    }
+
+    .card{
+      margin: 70px;
+      width: 550px;
+      height: 550px;
+    }
+
+    /*----------------------------------FOOTER----------------------------------*/
+    .floatFooter{
+      display: none;
+    }
+
+    .footer{
+      display: flex;
+      text-align: center;
+      justify-content: space-between;
+    }
+    
+    .logoFooter{
+      display: flex;
+      margin: 15px;
+    }
+
+    .logoFooter a{
+      color: aliceblue;
+      text-shadow: 0 0 3px #4D617A, 0 0 6px #1F3947;
+    }
+
+    .namesFooter{
+      display: flex;
+      gap: 10px;
+      margin: 15px;
+    }
+  }
+/*#endregion Desktop--------------------------------------------------------------------------------------------------*/
+
+/* .popupAlert{
+  width: 400px;
+  background-color: #fff;
+  border-radius: 6px;
+  position: absolute;
+  top: 0%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.1);
+  text-align: center;
+  padding: 0 30px 30px;
+  color: #333;
+  visibility: hidden;
+} */
