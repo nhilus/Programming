@@ -1,0 +1,10 @@
+﻿.hero-image {
+    width: 100vw;
+    height: 600px;
+    background-position: center;
+    background-size: cover;
+    background-image: url("https://images.unsplash.com/photo-1517956050595-8932d6d6b740?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8");
+    overflow: visible;
+    display: grid;
+    place-items: center;
+}

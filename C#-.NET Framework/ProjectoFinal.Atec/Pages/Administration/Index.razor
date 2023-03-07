@@ -1,0 +1,44 @@
+﻿@page "/administration"
+
+<div class="container">
+    <div class="row" style="margin-top:30px">
+        <div class="col-3">
+            <h3>Configuração</h3>
+            <div class="list-group">
+                <a class="list-group-item list-group-item-action @(currentNode == "Configuration:Postals:Districts" ? "active" : null)" onclick="@(() => SelectNode("Configuration:Postals:Districts"))">Distritos</a>
+                <a class="list-group-item list-group-item-action @(currentNode == "Configuration:Postals:Counties" ? "active" : null)" onclick="@(() => SelectNode("Configuration:Postals:Counties"))">Concelhos</a>
+                <a class="list-group-item list-group-item-action @(currentNode == "Configuration:Services:Categories" ? "active" : null)" onclick="@(() => SelectNode("Configuration:Services:Categories"))">Categorias</a>
+            </div>
+        </div>
+        <div class="col-9">
+            @switch (currentNode)
+            {
+                case "Configuration:Postals:Districts":
+                    <ProjetoFinal.Web.Blazor.Shared.Components.District.DataGrid />
+                    break;
+
+                case "Configuration:Postals:Counties":
+                    <ProjetoFinal.Web.Blazor.Shared.Components.County.DataGrid />
+                    break;
+
+                case "Configuration:Services:Categories":
+                    <ProjetoFinal.Web.Blazor.Shared.Components.Category.DataGrid />
+                    break;
+
+                default:
+                    <h1>Not found</h1>
+                    break;
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    public string currentNode = "Configuration:Postals:Districts";
+
+    public void SelectNode(string node)
+    {
+        currentNode = node;
+        StateHasChanged();
+    }
+}

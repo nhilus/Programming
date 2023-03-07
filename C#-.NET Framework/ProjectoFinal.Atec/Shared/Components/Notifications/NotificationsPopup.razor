@@ -1,0 +1,163 @@
+﻿@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.EntityFrameworkCore
+@using ProjetoFinal.Migrations
+@using ProjetoFinal.Models.Notification
+@using ProjetoFinal.Web.Blazor.Hubs
+@using System.Security.Claims
+@using ProjetoFinal.Web.Blazor.Services
+@inject HttpUtilities httpUtilities
+@inject NavigationManager navigationManager
+@inject IDbContextFactory<PfaDbContext> DbFactory
+@inject NotificationService notificationService
+
+<Modal @bind-IsVisible="@IsVisible" @bind-IsVisible:event="IsVisibleChanged" HasStyledContainer="false">
+    <button @onclick="() => SendAsync()">SendAsync</button>
+    <div class="notification-window-container" id="notification-container">
+        <div class="notification-header">
+            @*Close button*@
+            <span class="notification-close-btn e-icons e-close" @onclick="ToggleVisibility"></span>
+            @*Title*@
+            <h1 class="notification-title">Notificações</h1>
+        </div>
+        @*Content*@
+        <div class="notification-window-content">
+            @foreach (Notification notification in notifications)
+            {
+                <SfCard>
+                    <CardContent>
+                        <a style="display:flex;flex-direction:column;gap:2px;" @onclick="() => NotificationRead(notification.Id)">
+                            <span class="notif-message">@notification.Content</span>
+                            <span class="notif-date">@($"{notification.TimeStamp.Hour}:{notification.TimeStamp.Minute} - {notification.TimeStamp.ToShortDateString()}")</span>
+                            @if(!notification.IsRead){
+                                <div class="floating-notif" />
+                            }
+                        </a>
+                    </CardContent>
+                </SfCard>
+            }
+        </div>
+    </div>
+</Modal>
+
+<style>
+    #notification-container .notification-window-content{
+        direction: rtl;
+        overflow-y:scroll;
+        max-height:500px;
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+        width: 100%;
+    }
+
+    #notification-container.notification-window-container .e-card {
+        direction: ltr;
+        min-height: max-content;
+        overflow: visible;
+        cursor: pointer;
+    }
+
+    #notification-container.notification-window-container .e-card .e-card-content {
+        min-height: max-content;
+        padding: 12px 22px 12px 12px;
+    }
+    #notification-container .notif-message{
+
+    }
+    #notification-container .notif-date{
+        color: dimgray;
+        font-size: 13px;
+    }
+    #notification-container .floating-notif{
+        position: absolute;
+        border-radius: 50%;
+        background-color: red;
+        top: calc(0% + 6px);
+        left: calc(100% - 14px);
+        width: 8px;
+        height: 8px;
+        box-shadow: rgb(0, 0, 0, 50) 0 0 1px 1px;
+    }
+</style>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+
+    private bool _isVisible;
+    [Parameter]
+    public bool IsVisible
+    {
+        get => _isVisible;
+        set
+        {
+            if (_isVisible == value) return;
+            _isVisible = value;
+            IsVisibleChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    public List<Notification> notifications = new();
+    private HttpClient mainHttpClient = null!;
+    private HubConnection _hubConnection;
+
+    private void ToggleVisibility(){
+        IsVisible = !IsVisible;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Create HttpClient.
+        mainHttpClient = httpUtilities.CreateUserClient("Main");
+
+        // Get notifications
+        if((await authenticationStateTask).User.Identity.IsAuthenticated)
+            notifications = await mainHttpClient.GetFromJsonAsync<List<Notification>>("/notifications");
+
+        try
+        {
+            // SignalR client
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(navigationManager.BaseUri.TrimEnd('/') + NotificationHub.HubUrl)
+                .Build();
+
+            _hubConnection.On<Notification>("Broadcast", NotificationReceived);
+
+            await _hubConnection.StartAsync();
+        }
+        catch (Exception e)
+        {
+            throw e;
+        }
+    }
+
+    private async Task NotificationReceived(Notification notification)
+    {
+        // Check if it is user's notification.
+        if(notification.UserId == await GetLoggedUserId())
+        {
+            notifications.Add(notification);
+            StateHasChanged();
+        }
+    }
+
+    private void NotificationRead(Guid id)
+    {
+        mainHttpClient.PostAsync($"/notifications/{id}/read", null);
+        StateHasChanged();
+    }
+
+    private async Task SendAsync()
+    {
+        Notification notification = new("f1d9aeef-09b2-49de-9853-cb15ebdfa9f1", "Type", "Title", "Content");
+        notificationService.SendAsync(notification);
+    }
+
+    private async Task<string> GetLoggedUserId()
+    {
+        return (await authenticationStateTask).User.FindFirstValue("sub");
+    }
+}

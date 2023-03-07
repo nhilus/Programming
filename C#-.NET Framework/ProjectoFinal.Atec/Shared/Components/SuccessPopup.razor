@@ -1,0 +1,54 @@
+﻿<Modal @bind-IsVisible="@IsVisible" @bind-IsVisible:event="IsVisibleChanged" HasStyledContainer="true">
+    <div class="success-popup-container">
+        <i class="fa-regular fa-circle-check"></i>
+        <h5>@Message</h5>
+    </div>
+</Modal>
+
+<style>
+    .success-popup-container{
+        display: grid;
+        place-items: center;
+        margin: 10px;
+        padding: 10px;
+        gap: 20px;
+    }
+
+    .success-popup-container > i {
+        font-size: 40px;
+        color: forestgreen;
+    }
+
+    .success-popup-container > h5 {
+        width: 100%;
+        color: forestgreen;
+        padding-bottom: 10px;
+        text-align: center;
+    }
+</style>
+
+@code {
+    private bool _isVisible;
+    [Parameter]
+    public bool IsVisible
+    {
+        get => _isVisible;
+        set
+        {
+            if (_isVisible == value) return;
+            _isVisible = value;
+            IsVisibleChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    private void ToggleVisibility()
+    {
+        IsVisible = !IsVisible;
+    }
+
+    [Parameter]
+    public string Message { get; set; }
+}

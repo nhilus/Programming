@@ -1,0 +1,177 @@
+﻿@using ProjetoFinal.Web.Blazor.Identity
+@using ProjetoFinal.Web.Blazor.Shared.Components.Navbar;
+@using ProjetoFinal.Web.Blazor.Shared.Components.Login;
+@using ProjetoFinal.Web.Blazor.Shared.Components.Notifications;
+@using ProjetoFinal.Web.Blazor.Shared.Components;
+@using System.Security.Claims;
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IAuthorizationService AuthorizationService
+@inject ITokenProvider tokenProvider
+
+<nav class="navbar navbar-dark navbar-expand-xl bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">
+            @*<img src="/docs/5.2/assets/brand/bootstrap-logo.svg" alt="" width="40" height="40" class="d-inline-block align-text-top">*@
+            NoMoreSelfies
+        </a>
+        <button class="navbar-toggler" type="button" @onclick="ToggleNavMenu" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="@NavMenuCssClass navbar-collapse" id="navbarNavAltMarkup">
+            <div class="navbar-nav">
+                    <AuthorizeView>
+                        <NotAuthorized>
+                            <a @onclick:preventDefault="true" @onclick="ToggleVisibilityLogin" href="nothing">Log in / Register</a>
+                        </NotAuthorized>
+                        <Authorized>
+                        @if(hasToken){
+                            @if (isAdmin){
+                                <NavLink class="nav-link" href="administration/publications" Match="NavLinkMatch.All">
+                                    <span>Publicações</span>
+                                </NavLink>
+                                <NavLink class="nav-link" href="administration/providers" Match="NavLinkMatch.All">
+                                    <span>Fornecedores</span>
+                                </NavLink>
+                                <NavLink class="nav-link" href="administration/" Match="NavLinkMatch.All">
+                                    <span>Gestão</span>
+                                </NavLink>
+                                <NavLink class="nav-link">
+                                    <a href="@GetLogoutUrl().Result">Log out</a>
+                                </NavLink>
+                            }
+                            else{
+                                @if (isClient || isActiveProvider)
+                                {
+                                    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                                        <span>Pesquisa</span>
+                                    </NavLink>
+                                }
+                                <AuthorizeView Policy="isClient">
+                                    <Authorized Context="indexClient">
+                                        <NavLink class="nav-link" href="publications" Match="NavLinkMatch.All">
+                                            <span>Publicações</span>
+                                        </NavLink>
+                                    </Authorized>
+                                </AuthorizeView>
+                                @if (isClient || isActiveProvider)
+                                {
+                                    <NavLink class="nav-link" href="proposals">
+                                        <span>Propostas</span>
+                                    </NavLink>
+                                    <NavLink class="nav-link" href="messages">
+                                        <span>Mensagens</span>
+                                    </NavLink>
+                                }
+                                <a class="nav-link" @onclick="ToggleVisibilityNotifs">
+                                    <span>
+                                        Notificações
+                                    </span>
+                                </a>
+                                string profileHref = $"profilepage/{loggedUserId}";
+                                <NavLink class="nav-link" href="@GetLogoutUrl().Result">
+                                    @if(isProvider){
+                                        <a href="@profileHref">@context.User.Identity?.Name</a>
+                                        <span>/ </span>
+                                    }
+                                    else{
+                                        <span>@context.User.Identity?.Name</span>
+                                        <span>/ </span>
+                                    }
+                                    <a>Log out</a>
+                                 </NavLink>
+                            }
+                        }
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </div>
+    @*Popup elements*@
+    <LoginPopup @bind-IsVisible="@IsVisibleLogin" @bind-IsVisible:event="IsVisibleChanged" />
+    @if (hasToken)
+    {
+        <NotificationsPopup @bind-IsVisible="@IsVisibleNotifs" @bind-IsVisible:event="IsVisibleChanged" />
+    }
+</nav>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+    private ClaimsPrincipal loggedUser { get; set; }
+    private bool hasToken { get; set; } = false;
+    private bool isLoggedIn { get; set; } = false;
+    private string token { get; set; }
+    private string loggedUserId { get; set; }
+    private bool isClient { get; set; }
+    private bool isProvider { get; set; }
+    private bool isActiveProvider { get; set; }
+    private bool isAdmin { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        loggedUser = (await authenticationStateTask).User;
+        token = await getToken();
+        hasToken = (token != null);
+
+        // Find logged user Id
+        loggedUser = (await authenticationStateTask).User;
+        loggedUserId = (await authenticationStateTask).User.FindFirstValue("sub");
+
+        // Find if cliente, provider pending or active provider
+
+        isClient = (await AuthorizationService.AuthorizeAsync((await authenticationStateTask).User, "isClient")).Succeeded;
+
+        isProvider = (await AuthorizationService.AuthorizeAsync((await authenticationStateTask).User, "isProvider")).Succeeded;
+
+        isActiveProvider = (await AuthorizationService.AuthorizeAsync((await authenticationStateTask).User, "isProviderApproved")).Succeeded;
+
+        isAdmin = (await AuthorizationService.AuthorizeAsync((await authenticationStateTask).User, "isAdmin")).Succeeded;
+    }
+
+    //navbar collapse (mobile)
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    private async Task<string> GetLogoutUrl()
+    {
+        var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+        var sid = user.FindFirst("sid");
+
+        if (sid is null)
+        {
+            return "/bff/logout";
+        }
+        else
+        {
+            return $"/bff/logout?sid={sid.Value}";
+        }
+    }
+
+
+    //Login popup
+    private bool IsVisibleLogin { get; set; } = false;
+
+    private void ToggleVisibilityLogin()
+    {
+        IsVisibleLogin = !IsVisibleLogin;
+    }
+
+    //Notifications popup
+    private bool IsVisibleNotifs { get; set; } = false;
+
+    private void ToggleVisibilityNotifs()
+    {
+        IsVisibleNotifs = !IsVisibleNotifs;
+    }
+
+    private async Task<string> getToken()
+    {
+        return tokenProvider.AccessToken;
+    }
+}

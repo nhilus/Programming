@@ -1,0 +1,185 @@
+﻿@inject HttpClient _httpClient
+@using System.IO
+
+<div class="control-section template-carousel-section">
+    <div class="content-wrapper">
+        <div class="carousel-sample">
+            <SfCarousel @bind-AutoPlay="@AutoPlayCarousel" @bind-SelectedIndex="@ActiveImageIndex" @bind-SelectedIndex:event="SelectedIndexChanged" AnimationEffect="CarouselAnimationEffect.Fade" CssClass="templateCarousel">
+                <ChildContent>
+                    @if (ImageSources is not null){
+                        foreach (string image in ImageSources){
+                            <CarouselItem >
+                                <figure class="img-container" id="img-container">
+                                    <img src="https://stpfa22main.blob.core.windows.net/providers/pictures/@_userId/@image" style="height:100%;width:100%;" @onclick="ToggleVisibility">
+                                </figure>
+                            </CarouselItem>
+                        }
+                    }
+                </ChildContent>
+                <IndicatorsTemplate>
+                    @{
+                                <div class="indicator">
+                                    <img src="https://stpfa22main.blob.core.windows.net/providers/pictures/@_userId/@ImageSources[context.Index]" alt="image" style="height:100%; width:100%;" />
+                                </div>
+                    }
+                </IndicatorsTemplate>
+            </SfCarousel>
+        </div>
+    </div>
+</div>
+<Modal @bind-IsVisible="@IsVisible" @bind-IsVisible:event="IsVisibleChanged" HasStyledContainer="false">
+    <div id="div-container-modal">
+        <img id="image-modal" src="https://stpfa22main.blob.core.windows.net/providers/pictures/@_userId/@ImageSources[ActiveImageIndex]" @onclick="ToggleVisibility" />
+    </div>
+</Modal>
+
+
+@code {
+    private bool AutoPlayCarousel { get; set; } = true;
+
+    private bool _isVisible;
+    [Parameter]
+    public bool IsVisible
+    {
+        get => _isVisible;
+        set
+        {
+            if (_isVisible == value) return;
+            _isVisible = value;
+            IsVisibleChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    //public string imgSrc = "";
+    //public long maxFileSize = 1024 * 1024 * 15;
+    //public byte[] image = "https://stpfa22main.blob.core.windows.net/providers/pictures/@_userId/@pictureId";
+
+    //async Task LoadImage(InputFileChangeEventArgs e){
+
+        //image = this.GetImage(Convert.ToBase64String(image));
+        //var imageUrl = string.Format("data:image/jpeg;base64," + Convert.ToBase64String(image));
+        //using Stream fileStream = imageFile.OpenReadStream(maxFileSize);
+        //using MemoryStream ms = new();
+        //await fileStream.CopyToAsync(ms);
+        //imageDataUri = $"data:image/jpeg;base64,{Convert.ToBase64String(ms.ToArray())}";
+        
+    //}
+
+    //public byte[] GetImage(string sBase64String)
+    //{
+    //    byte[] bytes = null;
+    //    if (!string.IsNullOrEmpty(sBase64String)){
+    //        bytes = Convert.FromBase64String(sBase64String);
+    //    }
+    //    return bytes;
+    //}
+
+
+    private void ToggleVisibility()
+    {
+        IsVisible = !IsVisible;
+        AutoPlayCarousel = !AutoPlayCarousel;
+    }
+
+    private int ActiveImageIndex { get; set; } = 0;
+
+    
+    private RenderFragment ShowImage(string image)
+    {
+        return @<Modal IsVisible="true">@image</Modal>;
+    }
+
+
+    [Parameter]
+    public List<string> ImageSources { get; set; }
+    [Parameter]
+    public string _userId { get; set; }
+    [Parameter]
+    public EventCallback<string> ImageSourcesChanged { get; set; }
+
+
+
+}
+<style>
+
+    #img-container{
+        display: flex;
+        justify-content: center;
+        margin:0 0 80px 0;
+    }
+
+    #image-modal{
+        width: 90vw;
+        height: 90vh;
+        object-fit:contain;
+    }
+
+    .e-carousel .e-carousel-indicators{
+        position:relative;
+    }
+
+    .template-carousel-section .carousel-sample {
+        margin: 0 auto 2em;
+        max-width: 500px;
+        height: 350px;
+    }
+
+    .templateCarousel .e-carousel-items,
+    .templateCarousel .e-carousel-navigators {
+        height: calc(100% - 3rem);
+    }
+
+        .templateCarousel .e-carousel-navigators .e-previous,
+        .templateCarousel .e-carousel-navigators .e-next,
+        .templateCarousel .e-carousel-navigators .nav-btn {
+            padding: 0;
+        }
+
+            .templateCarousel .e-carousel-navigators .nav-btn:active,
+            .templateCarousel .e-carousel-navigators .nav-btn:focus,
+            .templateCarousel .e-carousel-navigators .nav-btn:hover {
+                background-color: transparent !important;
+                color: inherit;
+            }
+
+        .templateCarousel .e-carousel-navigators svg {
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: square;
+            stroke-width: 8px;
+            height: 2rem;
+            vertical-align: middle;
+            width: 2rem;
+        }
+
+        .templateCarousel .e-carousel-navigators .e-previous svg {
+            transform: rotate(180deg);
+        }
+
+    .templateCarousel .e-carousel-indicators .e-indicator-bars .e-indicator-bar .indicator {
+        background-color: #ECECEC;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        height: 3.5rem;
+        margin: 0.5rem;
+        width: 5rem;
+    }
+
+    .templateCarousel .e-carousel-indicators .e-indicator-bars .e-indicator-bar.e-active .indicator {
+        background-color: #3C78EF;
+    }
+
+    @@media screen and (max-width: 480px) {
+        .template-carousel-section .carousel-sample {
+            width: 100%;
+            height: 250px;
+        }
+
+        .templateCarousel .img-container {
+            margin: 12px;
+        }
+    }
+</style>

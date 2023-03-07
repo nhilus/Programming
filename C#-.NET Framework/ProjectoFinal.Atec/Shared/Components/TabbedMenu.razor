@@ -1,0 +1,48 @@
+﻿<PageTitle>TabbedMenu</PageTitle>
+
+<div class="tabbed-menu-container">
+    <h3>TabbedMenu</h3>
+    <div class="tabbed-menu">
+        <button class="btn @GetButtonColor(0)" @onclick="() => ChangeTab(0)">Tab 1</button>
+        <button class="btn @GetButtonColor(1)" @onclick="() => ChangeTab(1)">Tab 2</button>
+        <button class="btn @GetButtonColor(2)" @onclick="() => ChangeTab(2)">Tab 3</button>
+    </div>
+    <div class="tabbed-menu-content">
+        @if (index is not null)
+        {
+            <div class="border border-primary my-1 p-1">
+                <DynamicComponent Type="@selectedType" Parameters="@Parameters"/>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private Type selectedType = typeof(TabbebMenuTab);
+    private int? index = null;
+    private List<string> parametersAvailable = new List<string>
+    {
+        "Tab 1",
+        "Tab 2",
+        "Tab 3"
+    };
+    public Dictionary<string, object> Parameters { get; set; } = new Dictionary<string, object>();
+
+    private void ChangeTab(int index)
+    {
+        if (this.index == index)
+        {
+            this.index = null;
+            return;
+        }
+        this.index = index;
+        Parameters.Clear();
+        Parameters.Add("Text", parametersAvailable[(int)this.index]);
+
+    }
+
+    private string GetButtonColor(int elementIndex)
+    {
+        return (this.index == elementIndex) ? "btn-danger" : "btn-primary";
+    }
+}

@@ -1,0 +1,28 @@
+﻿@page "/administration/providers"
+
+@using ProjetoFinal.Web.Blazor.Shared.Components.Admin
+@using ProjetoFinal.Web.Blazor.Shared.Components
+
+<ProjetoFinal.Web.Blazor.Shared.Components.MainContainer.MainContainer>
+    <div style="padding: 30px 0;">
+        <AuthorizeView>
+            <Authorized>
+                <AuthorizeView Policy="isAdmin">
+                    <Authorized Context="isAdminContext">
+                        <ProjetoFinal.Web.Blazor.Shared.Components.Admin.Providers></ProjetoFinal.Web.Blazor.Shared.Components.Admin.Providers>
+                    </Authorized>
+                    <NotAuthorized Context="isNotAdminContext">
+                        <NotAuthorizedComponent></NotAuthorizedComponent>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </Authorized>
+            <NotAuthorized>
+                <NotAuthorizedComponent></NotAuthorizedComponent>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</ProjetoFinal.Web.Blazor.Shared.Components.MainContainer.MainContainer>
+
+@code {
+
+}

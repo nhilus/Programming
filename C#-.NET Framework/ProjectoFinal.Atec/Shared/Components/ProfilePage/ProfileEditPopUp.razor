@@ -1,0 +1,535 @@
+﻿@inject HttpClient _httpClient
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject HttpUtilities httpUtilities
+
+@using System.Security.Claims
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IAuthorizationService AuthorizationService
+@inject HttpUtilities httpUtilities
+@inject SyncfusionDatabaseUtilities syncfusionUtilities
+@inject IDbContextFactory<PfaDbContext> DbFactory
+
+@using Microsoft.EntityFrameworkCore
+@using ProjetoFinal.Migrations
+@using ProjetoFinal.Models
+@using ProjetoFinal.Models.Config
+@using ProjetoFinal.Models.Postal
+@using ProjetoFinal.Models.Provider
+@using ProjetoFinal.Models.Service
+@using ProjetoFinal.Web.Blazor.Data
+@using ProjetoFinal.Web.Blazor.Shared
+@using Microsoft.AspNetCore.Components
+@using System.Net.Http.Json
+@using System.Text.RegularExpressions
+@using System.Text
+@using System.Net.Mail
+
+
+if(Profile != null){
+<div>
+<Modal @bind-IsVisible="@IsVisible" @bind-IsVisible:event="IsVisibleChanged" HasStyledContainer="false" PreventExitOnOutsideClick="true">
+    <div class="notification-window-container" id="client-registration-form">
+        <div class="notification-header">
+            @*Close button*@
+            <span class="notification-close-btn e-icons e-close" @onclick="ToggleVisibility"></span>
+            @*Title*@
+            <h1 class="notification-title">Editar Perfil</h1>
+        </div>
+        @*Content*@
+        <div class="notification-window-content">
+            <Form FormSubmitted="FormSubmitted">
+                <div class="form-field">
+                    <label>Nome:</label>
+                    <input type="text"
+                           name="name"
+                           id="form-name"
+                           placeholder="Insira o seu nome aqui"
+                           @bind-value="FormCompanyName"/>
+                </div>
+                <div class="form-field">
+                    <label>Descrição:</label>
+                    <textarea name="description"
+                              rows="5"
+                              @bind="FormDescription"
+                              placeholder="Descrição da sua atividade (Data de começo de atividade e experiência profissional, por exemplo)"
+                              ></textarea>
+                </div>
+                <div class="form-field">
+                    <label>Ligações:</label>
+                    <SfMultiSelect Mode="@VisualMode.CheckBox"
+                                   TValue="int[]"
+                                   @bind-Value="@SelectedSocials"
+                                   TItem="SocialNetwork"
+                                   DataSource="@socials"
+                                   Placeholder="Selecione as ligações que pretende partilhar"
+                                   AllowFiltering="false"
+                                   ShowSelectAll="false"
+                                   EnableSelectionOrder="false"
+                                   ShowDropDownIcon="true"
+                                   FilterBarPlaceholder="Pesquisa"
+                                   PopupHeight="350px">
+                        <MultiSelectFieldSettings Text="Name" Value="Id"></MultiSelectFieldSettings>
+                    </SfMultiSelect>
+                    @if (SelectedSocials != null)
+                    {
+                        <div class="form-field-attach">
+                            @foreach (ProfileSocial social in RegistrationSocials)
+                            {
+                                @if (SelectedSocials.Contains(social.SocialNetworkId))
+                                {
+                                    <label>@social.SocialNetwork.Name</label>
+                                    <input placeholder="Link completo" @bind-value="@social.Url" />
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="form-field">
+                    <label>Categorias:</label>
+                    <SfMultiSelect Mode="@VisualMode.CheckBox"
+                                   TValue="int[]"
+                                   @bind-Value="@SelectedCategories"
+                                   TItem="Category"
+                                   DataSource="@categories"
+                                   Placeholder="Selecione as categorias a que pretende dispor serviços"
+                                   AllowFiltering="false"
+                                   ShowSelectAll="false"
+                                   EnableSelectionOrder="false"
+                                   ShowDropDownIcon="true"
+                                   FilterBarPlaceholder="Pesquisa"
+                                   PopupHeight="350px">
+                        <MultiSelectFieldSettings Text="Name" Value="Id"></MultiSelectFieldSettings>
+                    </SfMultiSelect>
+                </div>
+                <div class="form-field">
+                    <label>Distritos:</label>
+                    <SfMultiSelect Mode="@VisualMode.CheckBox"
+                                   TValue="int[]"
+                                   @bind-Value="@SelectedDistricts"
+                                   TItem="District"
+                                   DataSource="@districts"
+                                   Placeholder="Selecione os distritos nos quais pretende dispor serviços"
+                                   AllowFiltering="true"
+                                   ShowSelectAll="false"
+                                   EnableSelectionOrder="false"
+                                   ShowDropDownIcon="true"
+                                   FilterBarPlaceholder="Pesquisa"
+                                   PopupHeight="350px">
+                        <MultiSelectFieldSettings Text="Name" Value="Id"></MultiSelectFieldSettings>
+                    </SfMultiSelect>
+                </div>
+                <div class="form-field">
+                    <label>Concelhos:</label>
+                    <SfMultiSelect Mode="@VisualMode.CheckBox"
+                                   TValue="int[]"
+                                   @bind-Value="@SelectedLocations"
+                                   TItem="County"
+                                   DataSource="@LocationsInDisctricts"
+                                   Placeholder="Selecione os concelhos nos quais pretende dispor serviços"
+                                   AllowFiltering="true"
+                                   ShowSelectAll="false"
+                                   EnableSelectionOrder="false"
+                                   ShowDropDownIcon="true"
+                                   FilterBarPlaceholder="Pesquisa"
+                                   PopupHeight="350px"
+                                   Readonly="@(LocationsInDisctricts.Count == 0)">
+                        <MultiSelectFieldSettings Text="Name" Value="Id"></MultiSelectFieldSettings>
+                    </SfMultiSelect>
+                </div>
+            </Form>
+        </div>
+    </div>
+</Modal>
+<LockUI IsVisible="@IsVisibleLocker"></LockUI>
+@if (IsVisibleError)
+{
+    <ErrorPopup errorList="errorList" @bind-IsVisible="@IsVisibleError" @bind-IsVisible:event="IsVisibleChanged"></ErrorPopup>
+}
+@if (IsVisibleSuccess)
+{
+    <SuccessPopup Message="Publicação encerrada com sucesso!" @bind-IsVisible="@IsVisibleSuccess" @bind-IsVisible:event="IsVisibleChanged"></SuccessPopup>
+}
+</div>
+}
+
+<style>
+    #client-registration-form.notification-window-container {
+        direction: initial;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+        padding: 20px;
+        width: 80vw;
+        max-width: 800px;
+        overflow: visible;
+        height: max-content;
+        max-height: max-content;
+    }
+
+    #client-registration-form .notification-header {
+        width: 100%;
+        position: relative;
+    }
+
+    #client-registration-form .notification-close-btn {
+        position: absolute;
+        left: calc(0% - 10px);
+        top: calc(50% - 15px);
+        font-size: 30px;
+        cursor: pointer;
+        color: white;
+    }
+
+    #client-registration-form .notification-title {
+        color: white;
+        text-align: center;
+        margin: 0 0 0 0;
+        width: 100%;
+    }
+
+    #client-registration-form .notification-window-content {
+        overflow-y: scroll;
+        height: max-content;
+        max-height: max-content;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+        overflow: visible;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string UserId { get; set; }
+    [Parameter]
+    public Profile Profile { get; set; }
+
+    private bool _isVisible;
+    [Parameter]
+    public bool IsVisible
+    {
+        get => _isVisible;
+        set
+        {
+            if (_isVisible == value) return;
+            _isVisible = value;
+            IsVisibleChanged.InvokeAsync(value);
+        }
+    }
+
+    private void ToggleVisibility()
+    {
+        IsVisible = !IsVisible;
+    }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    [Parameter]
+    public ICollection<ProfileSocial> ProfileSocials { get; set; }
+
+    private HttpClient mainHttpClient = null!;
+    private PfaDbContext dbContext = default!;
+    private IQueryable<SocialNetwork> socialNetworks = default!;
+    private IQueryable<County> counties = default!;
+    private IQueryable<District> districts = default!;
+    private IQueryable<Category> categories = default!;
+    private IQueryable<Profile> profiles = default!;
+
+    //UI Locker popup
+    private bool IsVisibleLocker { get; set; } = false;
+    private void ToggleVisibilityLocker()
+    {
+        IsVisibleLocker = !IsVisibleLocker;
+    }
+
+    //Error popup modal control
+    private List<string> errorList = new();
+    public bool IsVisibleError { get; set; } = false;
+    private void ToggleVisibilityError()
+    {
+        IsVisibleError = !IsVisibleError;
+    }
+    private void addErrorToList(string errorMessage)
+    {
+        errorList.Add(errorMessage);
+    }
+
+    //Success popup modal control
+
+    private bool IsFormSubmitted { get; set; } = false;
+    public bool IsVisibleSuccess { get; set; }
+
+    private void ToggleVisibilitySuccess()
+    {
+        IsVisible = !IsVisible;
+    }
+
+    protected override async void OnInitialized()
+    {
+        mainHttpClient = httpUtilities.CreateUserClient("Main");
+
+        dbContext = await DbFactory.CreateDbContextAsync();
+        socialNetworks = dbContext.SocialNetworks.AsNoTracking();
+        counties = dbContext.Counties.AsNoTracking();
+        districts = dbContext.Districts.AsNoTracking();
+        categories = dbContext.Categories.AsNoTracking();
+        profiles = dbContext.Profiles;
+        getData();
+    }
+
+    private void getData()
+    {
+        GetSocials();
+        GetCategories();
+        GetCounties();
+        GetDistricts();
+
+        GetProfileData();
+
+        FormCompanyName = Profile.Name;
+        FormDescription = Profile.Content;
+    }
+
+    private int[] InitialSocials { get; set; } 
+    private int[] InitialLocations{ get; set; } 
+    private int[] InitialCategories { get; set; } 
+
+    private void GetProfileData() {
+        List<int> arr = new();
+        foreach (ProfileSocial social in Profile.ProfileSocials)
+        {
+            arr.Add(social.SocialNetworkId);
+            RegistrationSocials.Find(x => x.SocialNetworkId == social.SocialNetworkId).Url = social.Url;
+        }
+        InitialSocials = arr.ToArray();
+        SelectedSocials = arr.ToArray();
+
+        arr = new();
+        foreach (Category category in Profile.Categories)
+        {
+            arr.Add(category.Id);
+        }
+        InitialCategories = arr.ToArray();
+        SelectedCategories = arr.ToArray();
+
+        arr = new();
+        List<int> arrDist = new();
+        foreach (County county in Profile.Counties)
+        {
+            arr.Add(county.Id);
+            if (arrDist.Contains(county.DistrictId)) continue;
+            arrDist.Add(county.DistrictId);
+        }
+        SelectedDistricts = arrDist.ToArray();
+        InitialLocations = arr.ToArray();
+        SelectedLocations = arr.ToArray();
+    }
+
+    //socials --
+    private int[]? SelectedSocials { get; set; }
+    private List<SocialNetwork> socials = new();
+
+    private List<ProfileSocial> RegistrationSocials = new List<ProfileSocial>();
+
+    private async Task GetSocials()
+    {
+        socials = socialNetworks.ToList();
+
+        foreach (SocialNetwork social in socials)
+        {
+            ProfileSocial newProfileSocial = new ProfileSocial("", social.Id, "");
+            newProfileSocial.SocialNetwork = social;
+            RegistrationSocials.Add(newProfileSocial);
+        }
+
+        return;
+    }
+
+    //categories --
+    private int[]? SelectedCategories { get; set; }
+    List<Category> Categories = new();
+
+    private async Task GetCategories()
+    {
+        Categories = categories.ToList();
+
+        return;
+    }
+
+    //locations --
+    //districts
+    private int[]? _selectedDistricts { get; set; }
+    private int[]? SelectedDistricts
+    {
+        get => _selectedDistricts;
+        set
+        {
+            if (_selectedDistricts == value) return;
+            if (value == null) SelectedLocations = null;
+            _selectedDistricts = value;
+            GetCountiesInDistricts();
+        }
+    }
+    List<District> Districts = new();
+
+    private async Task GetDistricts()
+    {
+        Districts = districts.ToList();
+
+        return;
+    }
+
+    //counties
+    private int[]? SelectedLocations
+    {
+        get;
+        set;
+    }
+    List<County> Locations = new();
+    List<County> LocationsInDisctricts = new();
+
+    private async Task GetCounties()
+    {
+        Locations = counties.ToList();
+
+        return;
+    }
+
+    private List<County> GetCountiesInDistricts()
+    {
+        if (SelectedDistricts == null || SelectedDistricts?.Length == 0) LocationsInDisctricts = new();
+        else LocationsInDisctricts = Locations.FindAll(IsInDistricts);
+
+        return LocationsInDisctricts;
+    }
+
+    private bool IsInDistricts(County county)
+    {
+        if (SelectedDistricts?.Contains(county.DistrictId) == true) return true;
+        return false;
+    }
+
+    private string FormCompanyName { get; set; }
+    private string FormDescription { get; set; }
+
+    private async void FormSubmitted()
+    {
+        ToggleVisibilityLocker();
+        bool IsSuccessful = await submitUser();
+        if (IsSuccessful)
+        {
+            IsFormSubmitted = true;
+            ToggleVisibilitySuccess();
+        }
+        else{
+            ToggleVisibilityError();
+        }
+        ToggleVisibilityLocker();
+        return;
+    }
+
+    private async Task<bool> submitUser()
+    {
+        //validate user related fields
+        errorList = new();
+
+        //validate provider field
+        if (!verifyCompanyName()) addErrorToList("Nome profissional inválido!");
+        if (!verifyCategories()) addErrorToList("Selecione pelo menos uma categoria!");
+        if (!verifyCounties()) addErrorToList("Selecione pelo menos um concelho!");
+
+        //if erros exist, cancel submit and shows errors
+        if (HasErros()) return false;
+
+        //instanciate classes and submit
+        //Profile
+        if(FormCompanyName != Profile.Name || FormDescription != Profile.Content){
+            // /providers/profiles
+            Profile newProfile = new(
+                UserId, FormCompanyName, FormDescription, ""
+            );
+
+            HttpResponseMessage responseProfile = await mainHttpClient.PutAsJsonAsync<Profile>($"/providers/profiles", newProfile);
+            if ((int)responseProfile.StatusCode == 401)
+            {
+                addErrorToList("Erro do servidor. Atualize a página");
+                return false;
+            }
+            else if ((int)responseProfile.StatusCode > 400)
+            {
+                addErrorToList("Erro do servidor. Tente novamente mais tarde (E2)");
+                return false;
+            }
+        }
+
+        Profile DBProfile = profiles.Include(x => x.ProfileSocials).Include(x => x.Categories).Include(x => x.Counties).First(x => x.UserId == UserId);
+
+        DBProfile.ProfileSocials.Clear();
+        if (SelectedSocials != null && SelectedSocials.Length > 0)
+        {
+            List<ProfileSocial> newProfileSocials = RegistrationSocials.FindAll(x => SelectedSocials.Contains(x.SocialNetworkId));
+
+            foreach (ProfileSocial profileSocial in newProfileSocials)
+            {
+                DBProfile.ProfileSocials.Add(profileSocial);
+            }
+        }
+
+        DBProfile.Categories.Clear();
+        foreach (int categoryId in SelectedCategories)
+        {
+            DBProfile.Categories.Add(dbContext.Categories.First(x => x.Id == categoryId));
+        }
+
+        DBProfile.Counties.Clear();
+        foreach (int countyId in SelectedLocations)
+        {
+            DBProfile.Counties.Add(dbContext.Counties.First(x => x.Id == countyId));
+        }
+
+        try
+        {
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception)
+        {
+            addErrorToList("Erro de ligação ao servidor, tente novamente mais tarde");
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool HasErros()
+    {
+        return (errorList.Count > 0);
+    }
+
+    private bool verifyCompanyName()
+    {
+        if (FormCompanyName == null || FormCompanyName.Length == 0) return false;
+        return true;
+    }
+
+    private bool verifySocials()
+    {
+        //
+        return true;
+    }
+
+    private bool verifyCategories()
+    {
+        if (SelectedCategories == null || SelectedCategories.Length == 0) return false;
+        return true;
+    }
+
+    private bool verifyCounties()
+    {
+        if (SelectedLocations == null || SelectedLocations.Length == 0) return false;
+        return true;
+    }
+}

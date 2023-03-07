@@ -1,0 +1,62 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using Microsoft.EntityFrameworkCore.Query
+@using ProjetoFinal.Migrations
+@using ProjetoFinal.Models.Postal
+@using ProjetoFinal.Web.Blazor.Data
+@inject IAuthorizationService AuthorizationService
+@inject SyncfusionDatabaseUtilities syncfusionUtilities
+@inject IDbContextFactory<PfaDbContext> DbFactory
+@inject IJSRuntime JsRuntime
+
+<SfGrid DataSource="@counties" TValue="County" RowRenderingMode="@rowRenderingMode" AllowSorting="true" AllowFiltering="true" AllowPaging="true" Toolbar="@gridToolbar" EnableAdaptiveUI="true">
+    <GridEvents OnActionBegin="@ActionBeginHandler" OnLoad="@LoadHandler" TValue="County" />
+    <GridPageSettings PageSize="25" />
+    <GridEditSettings AllowAdding="@allowManage" AllowEditing="@allowManage" AllowDeleting="@allowManage" Mode="EditMode.Normal" />
+    <GridColumns>
+        <GridColumn Field="@nameof(County.Id)" Visible="false" />
+        <GridColumn Field="@nameof(County.Name)" FilterSettings="@(new FilterSettings{ Operator = Operator.Contains })" />
+        <GridForeignColumn ForeignDataSource="@districts" TValue="District" Field="@nameof(County.DistrictId)" ForeignKeyField="Id" ForeignKeyValue="Name" HeaderText="District" FilterSettings="@(new FilterSettings{ Operator = Operator.Contains })" />
+    </GridColumns>
+</SfGrid>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+    private PfaDbContext dbContext = default!;
+    private IQueryable<County> counties = default!;
+    private IQueryable<District> districts = default!;
+
+    // Grid properties
+    private bool allowManage = false;
+    private List<string> gridToolbar = new List<string>() { };
+    private RowDirection rowRenderingMode = RowDirection.Horizontal;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialise context
+        dbContext = await DbFactory.CreateDbContextAsync();
+        districts = dbContext.Districts.AsNoTracking();
+        counties = dbContext.Counties.AsNoTracking();
+
+        var county = dbContext.Counties.Include(X => X.District);
+
+        // Add CRUD commands if user has permissions.
+        if ((await AuthorizationService.AuthorizeAsync((await authenticationStateTask).User, "county.manage")).Succeeded)
+        {
+            gridToolbar.AddRange(new List<string> { "Add", "Edit", "Delete" });
+            allowManage = true;
+        }
+
+    }
+
+    public async Task ActionBeginHandler(ActionEventArgs<County> args)
+    {
+        await syncfusionUtilities.SyncfusionDatabaseActionAsync(args.Data, args.Action);
+    }
+
+    public async Task LoadHandler(object args)
+    {
+        if (await JsRuntime.InvokeAsync<bool>("isMobile"))
+            rowRenderingMode = RowDirection.Vertical;
+    }
+}

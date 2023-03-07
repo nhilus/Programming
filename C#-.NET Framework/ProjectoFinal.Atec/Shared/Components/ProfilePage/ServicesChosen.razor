@@ -1,0 +1,67 @@
+﻿
+<SfCard ID="ServicesChosen">
+    <CardFooter>
+        @name
+    </CardFooter>
+</SfCard>
+
+<style>
+
+    #ServicesChosen{
+        width:150px;
+        height:max-content;
+        margin:15px;
+        border-radius:35px;
+
+    }
+
+    #ServicesChosen .e-card-image {
+        height:300px;
+        width:250px;
+    }
+
+    #ServicesChosen {
+        text-align: center;
+    }
+
+
+
+
+/* Clear floats after the columns */
+.row:after {
+  display: table;
+  clear: both;
+}
+
+/* Style the counter cards */
+.card {
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2); /* this adds the "card" effect */
+  padding: 16px;
+  text-align: center;
+  background-color: #f1f1f1;
+}
+
+/* Responsive columns - one column layout (vertical) on small screens */
+
+
+
+
+
+
+</style>
+
+@code {
+
+
+    [Parameter]
+    public string image{ get; set; }
+    [Parameter]
+    public string name { get; set; }
+
+    [Parameter]
+    public EventCallback<string> ImageChanged { get; set; }
+    [Parameter]
+    public EventCallback<string> NameChanged { get; set; }
+
+
+}

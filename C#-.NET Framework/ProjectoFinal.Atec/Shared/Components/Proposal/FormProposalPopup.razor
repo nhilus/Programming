@@ -1,0 +1,250 @@
+﻿@using ProjetoFinal.Models.Notification
+@using ProjetoFinal.Models.Postal
+@using ProjetoFinal.Models.Service
+@using ProjetoFinal.Models.Config
+@using ProjetoFinal.Web.Blazor.Data
+@using ProjetoFinal.Web.Blazor.Services
+@using ProjetoFinal.Web.Blazor.Shared
+@using ProjetoFinal.Migrations
+@using Microsoft.EntityFrameworkCore
+@using ProjetoFinal.Models.Message
+@using System.Security.Claims
+
+@inject NavigationManager navigationManager
+@inject IAuthorizationService AuthorizationService
+@inject HttpUtilities httpUtilities
+@inject SyncfusionDatabaseUtilities syncfusionUtilities
+@inject IDbContextFactory<PfaDbContext> DbFactory
+@inject IJSRuntime JsRuntime
+@inject NotificationService notificationService
+
+<div>
+    <Modal @bind-IsVisible="@IsVisible" @bind-IsVisible:event="IsVisibleChanged" HasStyledContainer="false" PreventExitOnOutsideClick="true">
+        <div class="notification-window-container" id="client-registration-form">
+            <div class="notification-header">
+                @*Close button*@
+                <span class="notification-close-btn e-icons e-close" @onclick="ToggleVisibility"></span>
+                @*Title*@
+                <h1 class="notification-title">Nova proposta</h1>
+            </div>
+            @*Content*@
+            <div class="notification-window-content">
+                <Form FormSubmitted="FormSubmitted">
+                    <div class="form-field" style="border-bottom: solid 3px gray">
+                        <label>Descrição publicação:</label>
+                        <textarea name="client_description"
+                                    value="@publication.Content"
+                                    rows="5"
+                                    disabled 
+                                    style="color:black;" />
+                    </div>
+                    <div class="form-field">
+                        <label>Descrição:</label>
+                        <textarea name="description"
+                                  rows="5"
+                                  placeholder="Descrição dos serviços disponíveis, para melhor compreensão do cliente"
+                                  @bind="FormDescription" />
+                    </div>
+                    <div class="form-field">
+                        <label style="width: max-content">Valor (€):</label>
+                        <input type="text"
+                                   placeholder="Preço do serviço"
+                                   @bind="FormPrice"
+                                   required />
+                    </div>
+                </Form>
+            </div>
+        </div>
+    </Modal>
+    @if (IsVisibleError)
+    {
+        <ErrorPopup errorList="errorList" @bind-IsVisible="@IsVisibleError" @bind-IsVisible:event="IsVisibleChanged"></ErrorPopup>
+    }
+    @if (IsVisibleSuccess)
+    {
+        <SuccessPopup Message="Proposta enviada!" @bind-IsVisible="@IsVisibleSuccess" @bind-IsVisible:event="IsVisibleChanged"></SuccessPopup>
+    }
+    @if (IsVisibleLocker)
+    {
+        <LockUI IsVisible="@IsVisibleLocker" />
+    }    
+</div>
+
+<style>
+    #client-registration-form.notification-window-container{
+        direction: initial;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+        padding: 20px;
+        width: 80vw;
+        max-width: 800px;
+        overflow:visible;
+        height: max-content;
+        max-height: max-content;
+    }
+    #client-registration-form .notification-header{
+        width: 100%;
+        position: relative;
+    }
+    #client-registration-form .notification-close-btn {
+        position: absolute;
+        left: calc(0% - 10px);
+        top: calc(50% - 15px);
+        font-size: 30px;
+        cursor: pointer;
+        color: white;
+    }
+    #client-registration-form .notification-title{
+        color: white;
+        text-align: center;
+        margin: 0 0 0 0;
+        width: 100%;
+    }
+    #client-registration-form .notification-window-content{
+        overflow-y:scroll;
+        height: max-content;
+        max-height: max-content;
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+        width: 100%;
+        overflow: visible;
+    }
+</style>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+    private HttpClient mainHttpClient = null!;
+    private PfaDbContext dbContext = default!;
+
+    //Form content modal control
+    private bool _isVisible;
+    [Parameter]
+    public bool IsVisible
+    {
+        get => _isVisible;
+        set
+        {
+            if (_isVisible == value) return;
+            _isVisible = value;
+            IsVisibleChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    private void ToggleVisibility()
+    {
+        IsVisible = !IsVisible;
+    }
+
+    //UI Locker popup
+    private bool IsVisibleLocker { get; set; } = false;
+
+    private void ToggleVisibilityLocker()
+    {
+        IsVisibleLocker = !IsVisibleLocker;
+    }
+
+    //Error popup modal control
+    private List<string> errorList = new();
+
+    public bool IsVisibleError { get; set; } = false;
+
+    private void ToggleVisibilityError()
+    {
+        IsVisibleError = !IsVisibleError;
+    }
+
+    //Success popup modal control
+
+    public bool _isVisibleSuccess { get; set; } = false;
+    public bool IsVisibleSuccess {
+        get => _isVisibleSuccess;
+        set
+        {
+            if (_isVisibleSuccess == value) return;
+            if (!value) ToggleFormOnSuccess(_isVisibleSuccess);
+            _isVisibleSuccess = value;
+        }
+    }
+
+    private void ToggleFormOnSuccess(bool isSuccessPopupShowing){
+        if (isSuccessPopupShowing || IsVisible) ToggleVisibility();
+    }
+
+    private void ToggleVisibilitySuccess()
+    {
+        IsVisibleSuccess = !IsVisibleSuccess;
+    }
+
+    protected override async void OnInitialized()
+    {
+        mainHttpClient = httpUtilities.CreateUserClient("Main");
+    }
+
+    //form data
+    [Parameter]
+    public Publication publication { get; set; }
+    private string FormDescription { get; set; }
+    private string FormPrice { get; set; }
+    private decimal ProposalPrice { get; set; }
+
+    private async void FormSubmitted()
+    {
+        ToggleVisibilityLocker();
+        errorList = new();
+        if (FormPrice == null || FormPrice.Length == 0 || !verifyPrice()) addErrorToList("Preço inválido");
+        if (errorList.Count > 0) {
+            ToggleVisibilityLocker();
+            ToggleVisibilityError();
+        }
+        else{
+            string userId = (await authenticationStateTask).User.FindFirstValue("sub");
+            Proposal p = new(
+                publication.Id,
+                FormDescription,
+                userId,
+                ProposalPrice
+            );
+            HttpResponseMessage response = await mainHttpClient.PostAsJsonAsync<Proposal>($"/proposals", p);
+            if(response.IsSuccessStatusCode){
+                ToggleVisibilitySuccess();
+            }
+            else if((int)response.StatusCode == 401) {
+                addErrorToList("Erro de autenticação. Atualize a página");
+                ToggleVisibilityError();
+            }
+            else{
+                addErrorToList("Erro do servidor. Tente novamente mais tarde");
+                ToggleVisibilityError();
+            }
+            string notifTitle = (publication.Title.Length < 20) ? publication.Title : publication.Title.Substring(0, 20) + "...";
+            notificationService.SendAsync(new Notification(publication.ClientUserId, "NewProposal", "Nova Proposta",
+                $"Recebou uma nova proposta à publicação '{notifTitle}'")
+            );
+            ToggleVisibilityLocker();
+            StateHasChanged();
+        }
+        return;
+    }
+
+    private bool verifyPrice(){
+        decimal price = 0;
+        bool isDecimal = Decimal.TryParse(FormPrice, out price);
+        if (!isDecimal) return false;
+        if (price >= 1000000) return false;
+        price = (decimal)((int)(price * 100)) / 100;
+        ProposalPrice = price;
+        return true;
+    }
+
+    private void addErrorToList(string errorMessage){
+        errorList.Add(errorMessage);
+    }
+}

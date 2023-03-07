@@ -1,0 +1,73 @@
+﻿@page "/registration";
+
+@using ProjetoFinal.Web.Blazor.Shared.Components.MainContainer
+@using ProjetoFinal.Web.Blazor.Shared.Components.Registration
+
+
+<MainContainer>
+    @if (!IsClientTypeSelected)
+    {
+        <div id="registration-page">
+            <div class="registration-content">
+                <h1>Estou aqui para...</h1>
+                <div class="registration-cards-container">
+                    <div class="card" style="width: 18rem;" @onclick="IsClientHandler">
+                        <div class="icon-container">
+                            <div class="icon-wrapper">
+                                <MudIcon Icon="@Icons.Material.Rounded.Person" Title="Person" />
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">procurar apoio profissional para os meus projetos</p>
+                        </div>
+                    </div>
+                    <div class="card" style="width: 18rem;" @onclick="IsProviderHandler">
+                        <div class="icon-container">
+                            <div class="icon-wrapper">
+                                <MudIcon Icon="@Icons.Material.Rounded.Camera" Title="Camera" />
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">disponibilizar os meus serviços à comunidade</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    } 
+    else 
+    {
+        //Content is binded, so only one will appear at a time
+        <FormRegistrationPopup IsProvider="@IsProvider" @bind-IsVisible="@IsClientTypeSelected" @bind-IsVisible:event="IsVisibleChanged"></FormRegistrationPopup>
+    }
+</MainContainer>
+
+<style>
+    #registration-page .card svg {
+        font-size: 100px;
+        text-align: center;
+    }
+</style>
+
+@code {
+    private bool IsClientTypeSelected { get; set; } = false;
+
+    private bool? IsProvider { get; set; }
+
+    private void ToggleIsClientTypeSelected(){
+        IsClientTypeSelected = !IsClientTypeSelected;
+        IsProvider = null;
+    }
+
+    private void IsClientHandler()
+    {
+        ToggleIsClientTypeSelected();
+        IsProvider = false;
+    }
+
+    private void IsProviderHandler()
+    {
+        ToggleIsClientTypeSelected();
+        IsProvider = true;
+    }
+}

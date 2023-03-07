@@ -1,0 +1,520 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using ProjetoFinal.Migrations
+@using ProjetoFinal.Models.Message
+@using ProjetoFinal.Models.Service
+@using ProjetoFinal.Models.Postal
+@using ProjetoFinal.Models.Config
+@using ProjetoFinal.Models.Provider
+@using ProjetoFinal.Web.Blazor.Data
+@using System.Security.Claims
+
+@inject IAuthorizationService AuthorizationService
+@inject HttpUtilities httpUtilities
+@inject SyncfusionDatabaseUtilities syncfusionUtilities
+@inject IDbContextFactory<PfaDbContext> DbFactory
+@inject NavigationManager navigationManager
+@inject IJSRuntime JsRuntime
+
+<div>
+    <div id="client-search-container">
+        <div id="client-search-toolbar" style="display:grid; grid-template-columns: 3fr 1fr; gap: 10px; margin-bottom: 20px;">
+            <div id="client-search-toolbar-filters" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                <div class="client-search-filter-field">
+                    <label>Categorias:</label>
+                    <SfMultiSelect Mode="@VisualMode.CheckBox"
+                                   TValue="int[]"
+                                   @bind-Value="@SelectedCategories"
+                                   TItem="Category"
+                                   DataSource="@categories"
+                                   Placeholder="Selecione as categorias a que pretende dispor serviços"
+                                   AllowFiltering="false"
+                                   ShowSelectAll="false"
+                                   EnableSelectionOrder="false"
+                                   ShowDropDownIcon="true"
+                                   FilterBarPlaceholder="Pesquisa"
+                                   PopupHeight="350px">
+                        <MultiSelectFieldSettings Text="Name" Value="Id"></MultiSelectFieldSettings>
+                    </SfMultiSelect>
+                </div>
+                <div class="client-search-filter-field">
+                    <label>Distritos:</label>
+                    <SfMultiSelect Mode="@VisualMode.CheckBox"
+                                   TValue="int[]"
+                                   @bind-Value="@SelectedDistricts"
+                                   TItem="District"
+                                   DataSource="@districts"
+                                   Placeholder="Selecione os distritos nos quais pretende dispor serviços"
+                                   AllowFiltering="true"
+                                   ShowSelectAll="false"
+                                   EnableSelectionOrder="false"
+                                   ShowDropDownIcon="true"
+                                   FilterBarPlaceholder="Pesquisa"
+                                   PopupHeight="350px">
+                        <MultiSelectFieldSettings Text="Name" Value="Id"></MultiSelectFieldSettings>
+                    </SfMultiSelect>
+                </div>
+                <div class="client-search-filter-field @(SelectedDistrictsHaveValues() ? "field-disabled" : "")">
+                    <label>Concelhos:</label>
+                    <SfMultiSelect Mode="@VisualMode.CheckBox"
+                                   TValue="int[]"
+                                   @bind-Value="@SelectedLocations"
+                                   TItem="County"
+                                   DataSource="@LocationsInDisctricts"
+                                   Placeholder="Selecione os concelhos nos quais pretende dispor serviços"
+                                   AllowFiltering="true"
+                                   ShowSelectAll="false"
+                                   EnableSelectionOrder="false"
+                                   ShowDropDownIcon="true"
+                                   FilterBarPlaceholder="Pesquisa"
+                                   PopupHeight="350px"
+                                   Readonly="@(LocationsInDisctricts.Count == 0)">
+                        <MultiSelectFieldSettings Text="Name" Value="Id"></MultiSelectFieldSettings>
+                    </SfMultiSelect>
+                </div>
+            </div>
+            <div id="client-search-toolbar-buttons" style="width:100%; display:grid; grid-template-columns: 2fr 3fr; gap: 10px;">
+                <button class="btn btn-outline-secondary"
+                        @onclick="async () => applyFilters()">
+                    Aplicar filtros
+                </button>
+                <button class="btn btn-success"
+                        @onclick="() => ToggleVisibilityPublicationPopup()">
+                    Criar publicação
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <SfGrid DataSource="@gridData" @ref="@Grid" TValue="ProfileIds" AllowFiltering="true" AllowSorting="true" AllowPaging="true" AllowGrouping="false" class="NMS-datatable" RowRenderingMode="@rowRenderingMode" EnableAdaptiveUI="true">
+        <GridEvents  OnActionFailure="ActionFailureHandler" TValue="ProfileIds"></GridEvents>
+        <GridPageSettings PageSizes="true" PageSize="25" />
+        <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.CheckBox" />
+        <GridColumns>
+            <GridColumn Field=@nameof(ProfileIds.Name) HeaderText="Nome"></GridColumn>
+            <GridColumn Field=@nameof(ProfileIds.Rating) HeaderText="Classificação" Width="300px">
+                <Template>
+                    @{
+                        var profileData = (context as ProfileIds);
+                    }
+                @if (profileData.HasRatings) {
+                        <MudRating ReadOnly="true" SelectedValue="@(profileData.Rating)" MaxValue="5" Size="Size.Medium" />
+                }
+                else{
+                    <span>Sem classificações</span>
+                }
+                </Template>
+            </GridColumn>
+        </GridColumns>
+        <GridTemplates>
+            <DetailTemplate>
+                @{
+                    var profile = (context as ProfileIds);
+                }
+                <div class="NMS-datatable-detail-container">
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Descrição</span>
+                        <span>@profile.Profile.Content</span>
+                    </div>
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Concelhos</span>
+                        <div class="NMS-datatable-detail-multiple">
+                            @foreach (County c in profile.Locations)
+                            {
+                            
+                                <span>@c.Name</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Categorias</span>
+                        <div class="NMS-datatable-detail-multiple">
+                            @foreach (Category c in profile.Categories)
+                            {
+                            
+                                <span>@c.Name</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="NMS-datatable-detail-buttons">
+                        <button class="btn btn-success btn-sm" @onclick="() => GoToProfile(profile.Profile.UserId)">Visitar perfil</button>
+                        <button class="btn btn-secondary btn-sm" @onclick="() => OpenChat(profile.Profile.UserId)">Contactar fornecedor</button>
+                    </div>
+                </div>
+            </DetailTemplate>
+        </GridTemplates>
+    </SfGrid>
+    @if (IsVisiblePublicationPopup)
+    {
+    <ProjetoFinal.Web.Blazor.Shared.Components.Publication.FormPublicationPopup @bind-IsVisible="@IsVisiblePublicationPopup"
+                                                                          @bind-IsVisible:event="IsVisibleChanged"
+                                                                          >
+    </ProjetoFinal.Web.Blazor.Shared.Components.Publication.FormPublicationPopup>
+    }
+    @if (IsVisibleError)
+    {
+        <ErrorPopup errorList="errorList" @bind-IsVisible="@IsVisibleError" @bind-IsVisible:event="IsVisibleChanged"></ErrorPopup>
+    }
+    @if (IsVisibleSuccess)
+    {
+        <SuccessPopup Message="Proposta enviada!" @bind-IsVisible="@IsVisibleSuccess" @bind-IsVisible:event="IsVisibleChanged"></SuccessPopup>
+    }
+</div>
+
+<style>
+    .field-disabled{
+        color: lightgray;
+    }
+
+    #client-search-toolbar-filters .client-search-filter-field{
+        display: grid;
+        gap: 5px;
+    }
+</style>
+
+@code {
+    private RowDirection rowRenderingMode = RowDirection.Horizontal;
+
+    public async Task LoadHandler(object args)
+    {
+        if (await JsRuntime.InvokeAsync<bool>("isMobile"))
+            rowRenderingMode = RowDirection.Vertical;
+    }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+    private HttpClient mainHttpClient = null!;
+    private PfaDbContext dbContext = default!;
+    private List<County> counties = new();
+    private List<District> districts = new();
+    private List<Category> categories = new();
+    private IQueryable<Profile> profiles = default!;
+    private IQueryable<Participant> participants = default!;
+    private List<Profile> profilesList = default!;
+    private string loggedUserId { get; set; }
+    private List<ProfileIds> gridData = new();
+    SfGrid<ProfileIds>? Grid { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialise context
+        dbContext = await DbFactory.CreateDbContextAsync();
+        profiles = dbContext.Profiles.AsNoTracking();
+        participants = dbContext.Participants.AsNoTracking();
+
+        // Create HttpClient
+        mainHttpClient = httpUtilities.CreateUserClient("Main");
+
+        // Get logged user Id
+        loggedUserId = (await authenticationStateTask).User.FindFirstValue("sub");
+
+        //build data for grid
+        getProfiles();
+
+        await GetCategories();
+        await GetDistricts();
+        await GetCounties();
+
+        await buildGridData();
+    }
+
+    private bool IsVisiblePublicationPopup { get; set; } = false;
+    private void ToggleVisibilityPublicationPopup()
+    {
+        IsVisiblePublicationPopup = !IsVisiblePublicationPopup;
+    }
+
+    //Error popup modal control
+    private List<string> errorList = new();
+    public bool IsVisibleError { get; set; } = false;
+    private void ToggleVisibilityError()
+    {
+        IsVisibleError = !IsVisibleError;
+    }
+    private void addErrorToList(string errorMessage)
+    {
+        errorList.Add(errorMessage);
+    }
+
+    //Success popup modal control
+    public bool IsVisibleSuccess { get; set; } = false;
+    private void ToggleVisibilitySuccess()
+    {
+        IsVisibleSuccess = !IsVisibleSuccess;
+    }
+
+    public void ActionFailureHandler(Syncfusion.Blazor.Grids.FailureEventArgs args)
+    {
+    //
+    }
+
+    //categories --
+    private int[]? SelectedCategories { get; set; }
+
+    private async Task GetCategories()
+    {
+        Categories c = new Categories();
+        await c.FetchCategories(mainHttpClient);
+        categories = c.CategoriesList;
+
+        return;
+    }
+
+    //locations --
+    //districts
+    private int[]? _selectedDistricts { get; set; }
+    private int[]? SelectedDistricts
+    {
+        get => _selectedDistricts;
+        set
+        {
+            if (_selectedDistricts == value) return;
+            _selectedDistricts = value;
+            SelectedLocations = null;
+            GetCountiesInDistricts();
+        }
+    }
+
+    private async Task GetDistricts()
+    {
+        Districts d = new Districts();
+        await d.FetchDistricts(mainHttpClient);
+        districts = d.DistrictsList;
+
+        return;
+    }
+
+    //counties
+    private int[]? SelectedLocations
+    {
+        get;
+        set;
+    }
+    List<County> LocationsInDisctricts = new();
+
+    private async Task GetCounties()
+    {
+        Counties c = new Counties();
+        await c.FetchCounties(mainHttpClient);
+        counties = c.CountiesList;
+
+        return;
+    }
+
+    private List<County> GetCountiesInDistricts()
+    {
+        if (SelectedDistrictsHaveValues()) LocationsInDisctricts = new();
+        else LocationsInDisctricts = counties.FindAll(IsInDistricts);
+
+        return LocationsInDisctricts;
+    }
+
+    private bool SelectedDistrictsHaveValues(){
+        if (SelectedDistricts == null || SelectedDistricts?.Length == 0) return true;
+        return false;
+    }
+
+    private bool IsInDistricts(County county)
+    {
+        if (SelectedDistricts?.Contains(county.DistrictId) == true) return true;
+        return false;
+    }
+
+    private void getProfiles(){
+
+        profilesList = profiles.Where(p => p.IsEnabled == true)
+                                .Include(p => p.Categories)
+                                .Include(p => p.Counties)
+                                .ToList();
+    }
+
+    private async Task buildGridData(){
+
+        gridData = new();
+
+        foreach (Profile p in profilesList)
+        {
+            List<Rating> ratings = await mainHttpClient.GetFromJsonAsync<List<Rating>>($"/providers/profiles/{p.UserId}/ratings");
+            bool hasRatings = false;
+            int averageRating = 0;
+            if(ratings.Count > 0) {
+                averageRating = (int) Math.Round( (double)(ratings.Average(x => x.Rate)) , 0);
+                hasRatings = true;
+            } 
+
+            gridData.Add(
+                new ProfileIds(
+                    p,
+                    p.Categories.ToList(),
+                    p.Counties.ToList(),
+                    hasRatings,
+                    averageRating
+                )
+            );
+        }
+    }
+
+    private async void applyFilters(){
+
+        getProfiles();
+
+        if (SelectedCategories != null && SelectedCategories.Length > 0)
+        {
+            filterCategories();
+        }
+
+        if (SelectedLocations != null && SelectedLocations.Length > 0)
+        {
+            filterCounties();
+        }
+
+        await buildGridData();
+
+        StateHasChanged();
+        Grid.Refresh();
+    }
+
+    private void filterCategories(){
+        List<Profile> toRemove = new();
+
+        foreach (Profile profile in profilesList)
+        {
+            bool hasOneCategory = false;
+            foreach (Category category in profile.Categories)
+            {
+                if (SelectedCategories.Contains(category.Id)) {
+                    hasOneCategory = true;
+                    break;
+                }
+            }
+            if (!hasOneCategory) toRemove.Add(profile);
+        }
+
+        if (toRemove.Count > 0){
+            foreach (Profile p in toRemove)
+            {
+                profilesList.Remove(p);
+            }
+        }
+    }
+
+    private void filterCounties()
+    {
+        List<Profile> toRemove = new();
+
+        foreach (Profile profile in profilesList)
+        {
+            bool hasOneCounty = false;
+            foreach (County county in profile.Counties)
+            {
+                if (SelectedLocations.Contains(county.Id))
+                {
+                    hasOneCounty = true;
+                    break;
+                }
+            }
+            if (!hasOneCounty) toRemove.Add(profile);
+        }
+
+        if (toRemove.Count > 0)
+        {
+            foreach (Profile p in toRemove)
+            {
+                profilesList.Remove(p);
+            }
+        }
+    }
+
+    private async void OpenChat(string contactId)
+    {
+        errorList = new();
+
+        List<Participant> loggedUserConversations = participants.Where(x => x.UserId == loggedUserId).ToList();
+        List<Participant> otherUserConversations = participants.Where(x => x.UserId == contactId).ToList();
+        Participant result = null;
+
+        if (loggedUserConversations.Count > 0 && otherUserConversations.Count > 0)
+        {
+            try
+            {
+                foreach (Participant p in otherUserConversations)
+                {
+                    result = loggedUserConversations.Find(x => x.ConversationId == p.ConversationId);
+                    if (result != null) break;
+                }
+            }
+            catch
+            {
+                addErrorToList("Erro do servidor. Tente novamente mais tarde (Código A1)");
+                ToggleVisibilityError();
+                return;
+            }
+        }
+
+        if (result == null)
+        {
+            //criar conversa
+            var response1 = await mainHttpClient.PostAsync($"/messaging/conversations?title=wtv", null);
+            if (response1.IsSuccessStatusCode)
+            {
+                ToggleVisibilitySuccess();
+            }
+            else if ((int)response1.StatusCode == 401)
+            {
+                addErrorToList("Erro do servidor. Atualize a página");
+                ToggleVisibilityError();
+                return;
+            }
+            else
+            {
+                addErrorToList("Erro do servidor. Tente novamente mais tarde (Código R1)");
+                ToggleVisibilityError();
+                return;
+            }
+            Conversation newConv = await response1.Content.ReadFromJsonAsync<Conversation>();
+
+            //adicionar utilizador 1
+            var response2 = await mainHttpClient.PostAsync($"/messaging/conversations/{newConv.Id}/participants?userId={loggedUserId}", null);
+            if (response2.IsSuccessStatusCode)
+            {
+                ToggleVisibilitySuccess();
+            }
+            else if ((int)response2.StatusCode == 401)
+            {
+                addErrorToList("Erro do servidor. Atualize a página");
+                ToggleVisibilityError();
+                return;
+            }
+            else
+            {
+                addErrorToList("Erro do servidor. Tente novamente mais tarde (Código R2)");
+                ToggleVisibilityError();
+                return;
+            }
+
+            //adicionar utilizador 2
+            var response3 = await mainHttpClient.PostAsync($"/messaging/conversations/{newConv.Id}/participants?userId={contactId}", null);
+            if (response3.IsSuccessStatusCode)
+            {
+                ToggleVisibilitySuccess();
+            }
+            else if ((int)response3.StatusCode == 401)
+            {
+                addErrorToList("Erro do servidor. Atualize a página");
+                ToggleVisibilityError();
+                return;
+            }
+            else
+            {
+                addErrorToList("Erro do servidor. Tente novamente mais tarde (Código R3)");
+                ToggleVisibilityError();
+                return;
+            }
+        }
+
+        navigationManager.NavigateTo("/messages");
+    }
+
+    private void GoToProfile(string userId){
+        navigationManager.NavigateTo($"/profilepage/{userId}");
+    }
+}

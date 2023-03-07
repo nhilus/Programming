@@ -1,0 +1,55 @@
+﻿<div class="row">
+    <div class="col-lg-2">
+        <div class="modal fade show" @onclick="ToggleVisibility" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true" style="display:@PopupToggleCssClass">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content @HasStyledContainerCssClass" @onclick:stopPropagation="true">
+                    @ChildContent
+                </div>
+            </div>
+        </div>       
+    </div>
+</div>
+
+<style>
+    .modal{
+        --bs-modal-margin: 1.75rem;
+        background-color: rgba(0,0,0,0.8)
+    }
+    .modal-dialog{
+        width: max-content;
+        max-width: var(--bs-modal-width);
+        margin-right: auto;
+        margin-left: auto;
+    }
+    .modal-dialog-centered{
+        justify-content: center;
+    }
+    .modal-content{
+        width: max-content;
+    }
+</style>
+
+
+@code {
+    [Parameter]
+    public bool HasStyledContainer { get; set; } = true;
+
+    private string? HasStyledContainerCssClass => HasStyledContainer ? null : "bg-transparent border-0";
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    async Task ToggleVisibility()
+    {
+        IsVisible = !IsVisible;
+        await IsVisibleChanged.InvokeAsync(IsVisible);
+    }
+
+    private string PopupToggleCssClass => IsVisible ? "block" : "none";
+}

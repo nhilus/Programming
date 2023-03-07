@@ -1,0 +1,312 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using ProjetoFinal.Migrations
+@using ProjetoFinal.Models.Service
+@using ProjetoFinal.Models.Postal
+@using ProjetoFinal.Web.Blazor.Data
+@using ProjetoFinal.Web.Blazor.Shared.Components
+@using ProjetoFinal.Web.Blazor.Shared.Components.Proposal
+@using ProjetoFinal.Web.Blazor.Shared.Components.MainContainer
+@using ProjetoFinal.Web.Blazor.Shared.Components.Publication
+@using ProjetoFinal.Models.Message
+@using System.Security.Claims
+
+@inject NavigationManager navigationManager
+@inject IAuthorizationService AuthorizationService
+@inject HttpUtilities httpUtilities
+@inject SyncfusionDatabaseUtilities syncfusionUtilities
+@inject IDbContextFactory<PfaDbContext> DbFactory
+@inject IJSRuntime JsRuntime
+
+<div>
+    <SfGrid @ref="@Grid" DataSource="@gridData" TValue="PublicationIds" AllowFiltering="true" AllowSorting="true" AllowPaging="true" class="NMS-datatable" RowRenderingMode="@rowRenderingMode" EnableAdaptiveUI="true">
+        <GridEvents OnLoad="@LoadHandler" OnActionFailure="ActionFailureHandler" DataBound="DataBoundHandler" TValue="PublicationIds"></GridEvents>
+        <GridPageSettings PageSizes="true" PageSize="25" />
+        <GridColumns>
+            <GridColumn HeaderText="Título" TextAlign="TextAlign.Left" Field=@nameof(PublicationIds.PublicationTitle)>
+            </GridColumn>
+            <GridColumn HeaderText="Data" Field=@nameof(PublicationIds.ServiceDateStart)>
+                <Template>
+                @{
+                    var publicationIds = (context as PublicationIds);
+                    string placeholder = "Sem data definida";
+                    if (publicationIds.ServiceDateStart.HasValue)
+                            @publicationIds.ServiceDateStart.Value.ToShortDateString()
+                    else
+                            @placeholder
+                }
+                </Template>
+            </GridColumn>
+            <GridForeignColumn ForeignDataSource="@categoriesList"
+                                TValue="Category"
+                                Field=@nameof(PublicationIds.CategoryId)
+                                HeaderText="Categoria"
+                                ForeignKeyField="Id" ForeignKeyValue="Name"
+                                FilterSettings="@(new FilterSettings{  })" />
+            <GridForeignColumn ForeignDataSource="@districtsList"
+                TValue="District"
+                Field=@nameof(PublicationIds.DistrictId)
+                HeaderText="Distrito"
+                ForeignKeyField="Id" ForeignKeyValue="Name"
+                FilterSettings="@(new FilterSettings{ Operator = Operator.Contains })" />
+            <GridForeignColumn ForeignDataSource="@countiesList"
+                TValue="County"
+                Field=@nameof(PublicationIds.CountyId)
+                HeaderText="Concelho"
+                ForeignKeyField="Id" ForeignKeyValue="Name" />
+            <GridColumn HeaderText="Estado" TextAlign="TextAlign.Center" Width="100px">
+                <Template>
+                @{
+                    var publicationIds = (context as PublicationIds);
+                    int status = getStatus(publicationIds.Publication);
+                        <span class="publication-status-color-@status">@(getStatusText(status))</span>
+                }
+                </Template>
+            </GridColumn>
+        </GridColumns>
+        <GridTemplates>
+            <DetailTemplate>
+                @{
+                    var publicationIds = (context as PublicationIds);
+                }
+                <div class="NMS-datatable-detail-container">
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Descrição</span>
+                        <span>@publicationIds.Publication.Content</span>
+                    </div>
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Duração</span>
+                        <span>@(
+                                (publicationIds.ServiceDateStart.HasValue)
+                                ? GetEventDurationString(publicationIds.ServiceDateStart, publicationIds.Publication.ServiceDateEnd)
+                                : "N/A"
+                        )
+                        </span>
+                    </div>
+                    @if (getStatus(publicationIds.Publication) == 2)
+                    {
+                        <div class="NMS-datatable-detail-buttons">
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ClosePublication(publicationIds.PublicationId)">Encerrar</button>
+                        </div>
+                    }
+                    
+                </div>
+            </DetailTemplate>
+        </GridTemplates>
+    </SfGrid>
+    <LockUI IsVisible="@IsVisibleLocker"></LockUI>
+    @if (IsVisibleError)
+    {
+        <ErrorPopup errorList="errorList" @bind-IsVisible="@IsVisibleError" @bind-IsVisible:event="IsVisibleChanged"></ErrorPopup>
+    }
+    @if (IsVisibleSuccess)
+    {
+        <SuccessPopup Message="Publicação encerrada com sucesso!" @bind-IsVisible="@IsVisibleSuccess" @bind-IsVisible:event="IsVisibleChanged"></SuccessPopup>
+    }
+</div>
+
+@code {
+    private RowDirection rowRenderingMode = RowDirection.Horizontal;
+
+    public async Task LoadHandler(object args)
+    {
+        if (await JsRuntime.InvokeAsync<bool>("isMobile"))
+            rowRenderingMode = RowDirection.Vertical;
+    }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+    private HttpClient mainHttpClient = null!;
+    private PfaDbContext dbContext = default!;
+    private IQueryable<Publication> publications = default!;
+    private IQueryable<County> counties = default!;
+    private IQueryable<District> districts = default!;
+    private IQueryable<Category> categories = default!;
+    private List<County> countiesList = default!;
+    private List<District> districtsList = default!;
+    private List<Category> categoriesList = default!;
+    private List<PublicationIds> gridData = new();
+    SfGrid<PublicationIds>? Grid { get; set; }
+    private bool isClient { get; set; }
+    private string loggedUserId { get; set; }
+    private bool isQuerying { get; set; } = false;
+
+    private bool isLoggedIn { get; set; }
+
+    // Grid properties
+    private bool allowManage = false;
+
+    private int _selectedTab { get; set; }
+    private int SelectedTab { get; set; } //int
+    private bool isClosedQuery { get; set; } = false;
+    private bool isAcceptedQuery { get; set; } = false;
+    private bool isDoneQuery { get; set; } = false;
+
+    //Publication popup
+    //private bool _isVisiblePublicationPopup { get; set; } = false;
+    private bool IsVisiblePublicationPopup { get; set; } = false;
+    private Publication PublicationForPopup { get; set; } = null;
+
+    private void ToggleVisibilityPublicationPopup(Publication p)
+    {
+        PublicationForPopup = p;
+        IsVisiblePublicationPopup = !IsVisiblePublicationPopup;
+    }
+
+    //locker
+    private bool IsVisibleLocker { get; set; } = false;
+
+    private void ToggleVisibilityLocker()
+    {
+        IsVisibleLocker = !IsVisibleLocker;
+    }
+
+    //Error popup modal control
+    private List<string> errorList = new();
+    public bool IsVisibleError { get; set; } = false;
+    private void ToggleVisibilityError()
+    {
+        IsVisibleError = !IsVisibleError;
+    }
+    private void addErrorToList(string errorMessage)
+    {
+        errorList.Add(errorMessage);
+    }
+
+    //Success popup modal control
+    public bool IsVisibleSuccess { get; set; } = false;
+
+    private void ToggleVisibilitySuccess()
+    {
+        IsVisibleSuccess = !IsVisibleSuccess;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialise context
+        dbContext = await DbFactory.CreateDbContextAsync();
+        publications = dbContext.Publications.AsNoTracking().Include(x => x.County).ThenInclude(x => x.District);
+        counties = dbContext.Counties.AsNoTracking();
+        districts = dbContext.Districts.AsNoTracking();
+        categories = dbContext.Categories.AsNoTracking();
+
+        countiesList = counties.ToList();
+        districtsList = districts.ToList();
+        categoriesList = categories.ToList();
+
+        // Create HttpClient
+        mainHttpClient = httpUtilities.CreateUserClient("Main");
+
+        //Check if client or provider
+
+        isClient = (await AuthorizationService.AuthorizeAsync((await authenticationStateTask).User, "isClient")).Succeeded;
+
+        loggedUserId = (await authenticationStateTask).User.FindFirstValue("sub");
+
+        await buildGridData();
+    }
+
+    private async Task<bool> buildGridData(){
+        gridData = new();
+
+        List<Publication> ps = publications
+            .Where(x => x.ClientUserId == loggedUserId)
+            .Include(x => x.Category)
+            .Include(x => x.County).ThenInclude(y => y.District)
+            .ToList();
+
+        foreach (Publication p in ps)
+        {
+            PublicationIds x = new(p);
+            gridData.Add(x);
+        }
+        return true;
+    }
+
+    //Screen responsiveness, not being worked on at the moment
+    RowDirection RenderingMode = RowDirection.Vertical;
+
+    private int getStatus(Publication p)
+    {
+        //1 em revisão, 2 em aberto, 3 rejeitada, 4 concluida
+        if (p.IsReviewed == false) return 1;
+        if (p.IsApproved)
+        {
+            if (p.IsPublished) return 2;
+            else return 4;
+        }
+        else return 3;
+    }
+
+    private string getStatusText(int status){
+        switch (status)
+        {
+            case 1:
+                return "Em revisão"; break;
+            case 2:
+                return "Ativa"; break;
+            case 3:
+                return "Rejeitada"; break;
+            case 4:
+                return "Concluida"; break;
+            default:
+                break;
+        }
+        return "";
+    }
+
+    private string GetEventDurationString(DateTime? start, DateTime? end){
+        int days = (end.Value.Date - start.Value.Date).Days;
+        if (days > 1) return days + " dias";
+        if (days > 0) return days + " dia";
+        int horas = (end.Value - start.Value).Hours;
+        if (horas > 1) return horas + " horas";
+        else if (horas > 0) return horas + " hora";
+        return "N/A";
+    }
+
+    private void RefreshData(){
+        Grid.Refresh();
+        StateHasChanged();
+    }
+
+    private void toggleDataGridOn(){
+        isLoggedIn = true;
+    }
+
+    public void DataBoundHandler()
+    {        
+        //   
+    }
+
+    public void ActionFailureHandler(Syncfusion.Blazor.Grids.FailureEventArgs args)
+    {
+        Grid.Refresh();
+        StateHasChanged();
+    }
+
+    private async Task ClosePublication(int publicationId)
+    {
+        errorList = new();
+
+        ToggleVisibilityLocker();
+        StateHasChanged();
+
+        HttpResponseMessage response = await mainHttpClient.PostAsync($"/publications/{publicationId}/unpublish", null);
+        if(response.IsSuccessStatusCode){
+            RefreshData();
+            ToggleVisibilitySuccess();
+        }
+        else if ((int)response.StatusCode == 401)
+        {
+            addErrorToList("Erro do servidor. Atualize a página");
+            ToggleVisibilityError();
+        }
+        else{
+            addErrorToList("Ocorreu um erro, tente mais tarde");
+            ToggleVisibilityError();
+        }
+
+        ToggleVisibilityLocker();
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,104 @@
+﻿<div id="photographer-card" class="col-3" style="height: 300px; width:max-content;">
+    <SfCard ID="HugeImage">
+        <CardImage Image="@("")" />
+        <CardHeader Title="PlaceholderNome" />
+        <CardContent>
+            <Rating />
+        </CardContent>
+        <CardFooter>
+            <CardFooterContent>
+            <div class="nrEfetuados">
+                20
+            </div>
+            <div>
+                Serviços Efetuados
+                </div>
+                <div>
+                <p class="registo">Registado desde: 02/2022</p>
+                </div>
+            </CardFooterContent>
+        </CardFooter>
+    </SfCard>
+</div>
+
+<style>
+    #photographer-card .nrEfetuados {
+    font-size: 13px;
+    }
+
+    #photographer-card .registo {
+        font-size: 12px;
+    }
+
+    #photographer-card .e-card {
+        border-radius: 120px;
+        height: 400px;
+        width: 260px;
+    }
+
+    #photographer-card .e-card .e-card-header .e-card-header-caption .e-card-sub-title {
+        padding-top: 0px;
+    }
+
+    #photographer-card .e-card .e-card-header .e-card-header-caption .e-card-header-title {
+        font-weight: bold;
+    }
+
+    #photographer-card .e-card .e-card-content {
+        padding-top: 0px;
+    }
+
+    #photographer-card #HugeImage {
+        text-align: center
+    }
+
+        #photographer-card #HugeImage > .e-card-image {
+            margin: auto;
+            margin-top: 20px;
+            width: 64px;
+            height: 64px;
+            min-height: 64px;
+        }
+
+    #photographer-card .second-container .e-card .e-card-header .e-card-header-image {
+        height: 48px;
+        width: 48px;
+    }
+
+    #Card_Third {
+        margin-top: 8%;
+    }
+
+    #photographer-card .ChatIcon {
+        background-image: url(@("images/cards/chat.png"));
+        height: 24px;
+        width: 24px;
+    }
+
+    #photographer-card .AlarmIcon {
+        background-image: url(@("images/cards/alarm.png"));
+        height: 24px;
+        width: 24px;
+    }
+
+    #photographer-card .StarIcon {
+        background-image: url(@("images/cards/star.png"));
+        height: 24px;
+        width: 24px;
+    }
+
+    #photographer-card .row {
+        margin: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    #photographer-card table {
+        width: 60%
+    }
+</style>
+
+@code {
+
+}

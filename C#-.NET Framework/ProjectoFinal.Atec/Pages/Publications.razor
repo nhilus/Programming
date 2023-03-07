@@ -1,0 +1,41 @@
+﻿@page "/publications";
+
+@using Microsoft.EntityFrameworkCore
+@using ProjetoFinal.Migrations
+@using ProjetoFinal.Models.Message
+@using ProjetoFinal.Models.Service
+@using ProjetoFinal.Models.Postal
+@using ProjetoFinal.Web.Blazor.Data
+@using ProjetoFinal.Web.Blazor.Shared.Components
+@using ProjetoFinal.Web.Blazor.Shared.Components.Proposal
+@using ProjetoFinal.Web.Blazor.Shared.Components.MainContainer
+
+@inject IAuthorizationService AuthorizationService
+@inject HttpUtilities httpUtilities
+@inject SyncfusionDatabaseUtilities syncfusionUtilities
+@inject IDbContextFactory<PfaDbContext> DbFactory
+
+<MainContainer>
+    <div class="master-container">
+        <h1 class="page-title">Publicações efetuadas</h1>
+        <AuthorizeView>
+            <Authorized>
+                <ProjetoFinal.Web.Blazor.Shared.Components.Publication.PublicationClientGrid />
+            </Authorized>
+            <NotAuthorized>
+                <NotAuthorizedComponent></NotAuthorizedComponent>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</MainContainer>
+
+@code {
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+
+    }
+}

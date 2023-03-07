@@ -1,0 +1,74 @@
+﻿@using Syncfusion.Blazor.DropDowns
+@using Syncfusion.Blazor.Buttons
+
+    <SfMultiSelect class="multiselect" TValue="string[]" TItem="Countries" Placeholder="Categoria" Mode="@VisualMode.CheckBox" DataSource="@Country" ShowSelectAll="@ShowSelectAllCheckBox" EnableSelectionOrder="@EnableSelectionOrders" ShowDropDownIcon="@EnableDropDownIcon" FilterBarPlaceholder="Search countries" PopupHeight="150px">
+        <MultiSelectFieldSettings Text="Name" Value="Code"></MultiSelectFieldSettings>
+    </SfMultiSelect>
+
+@code {
+    public bool ShowSelectAllCheckBox { get; set; } = true;
+    public bool EnableSelectionOrders { get; set; } = true;
+    public bool EnableDropDownIcon { get; set; } = true;
+    private bool CheckSelectAll { get; set; } = true;
+    private bool DropDownButton { get; set; } = true;
+    private bool SelectionReorder { get; set; } = true;
+    public void OnSelectAllChange(Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
+    {
+        this.ShowSelectAllCheckBox = args.Checked;
+    }
+    public void OnDropDownButtonChange(Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
+    {
+        this.EnableDropDownIcon = args.Checked;
+    }
+    public void OnSeletionReorder(Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
+    {
+        this.EnableSelectionOrders = args.Checked;
+    }
+    public class Countries
+    {
+        public string? Name { get; set; }
+        public string? Code { get; set; }
+    }
+    List<Countries> Country = new List<Countries>
+    {
+        new Countries() { Name = "Australia", Code = "AU" },
+        new Countries() { Name = "Bermuda", Code = "BM" },
+        new Countries() { Name = "Canada", Code = "CA" },
+        new Countries() { Name = "Cameroon", Code = "CM" },
+        new Countries() { Name = "Denmark", Code = "DK" },
+        new Countries() { Name = "France", Code = "FR" },
+        new Countries() { Name = "Finland", Code = "FI" },
+        new Countries() { Name = "Germany", Code = "DE" },
+        new Countries() { Name = "Greenland", Code = "GL" },
+        new Countries() { Name = "Hong Kong", Code = "HK" },
+        new Countries() { Name = "India", Code = "IN" },
+        new Countries() { Name = "Italy", Code = "IT" },
+        new Countries() { Name = "Japan", Code = "JP" },
+        new Countries() { Name = "Mexico", Code = "MX" },
+        new Countries() { Name = "Norway", Code = "NO" },
+        new Countries() { Name = "Poland", Code = "PL" },
+        new Countries() { Name = "Switzerland", Code = "CH" },
+        new Countries() { Name = "United Kingdom", Code = "GB" },
+        new Countries() { Name = "United States", Code = "US" }
+    };
+}
+<style>
+    .multiselect .control-wrapper {
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 50px 0px 0px;
+    }
+
+    .multiselect .example-label {
+        font-size: 14px;
+        margin-bottom: 6px;
+    }
+
+    .multiselect .property-panel-content {
+        padding: 0px 0px 15px 0px;
+    }
+
+    .multiselect .property-panel-content:last-child {
+        padding: 0px 0px 40px 0px;
+    }
+</style>

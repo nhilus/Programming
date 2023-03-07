@@ -1,0 +1,310 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using ProjetoFinal.Migrations
+@using ProjetoFinal.Models.Message
+@using ProjetoFinal.Models.Service
+@using ProjetoFinal.Models.Postal
+@using ProjetoFinal.Models.Config
+@using ProjetoFinal.Models.Provider
+@using ProjetoFinal.Web.Blazor.Data
+@using System.Security.Claims
+@using ProjetoFinal.Web.Blazor.Services
+
+@inject IAuthorizationService AuthorizationService
+@inject HttpUtilities httpUtilities
+@inject SyncfusionDatabaseUtilities syncfusionUtilities
+@inject IDbContextFactory<PfaDbContext> DbFactory
+@inject NavigationManager navigationManager
+@inject NotificationService notificationService
+@inject IJSRuntime JsRuntime
+
+<div>
+    <SfGrid DataSource="@publications.Where(x => x.IsPublished == true).Include(x => x.Category).Include(x => x.County).ThenInclude(x => x.District)" TValue="Publication" AllowFiltering="true" AllowSorting="true" AllowPaging="true" class="NMS-datatable" RowRenderingMode="@rowRenderingMode" EnableAdaptiveUI="true">
+        <GridEvents OnLoad="@LoadHandler" OnActionFailure="ActionFailureHandler" TValue="Publication"></GridEvents>
+        <GridPageSettings PageSizes="true" PageSize="25" />
+        <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.CheckBox" />
+        <GridColumns>
+            <GridColumn Field=@nameof(Publication.Title) HeaderText="Título"></GridColumn>
+            <GridForeignColumn TValue="County" ForeignDataSource="@counties" Field=@nameof(Publication.CountyId) HeaderText="Concelho" ForeignKeyField="Id" ForeignKeyValue="Name"></GridForeignColumn>
+            <GridForeignColumn TValue="Category" ForeignDataSource="@categories" Field=@nameof(Publication.CategoryId) HeaderText="Categoria" ForeignKeyField="Id" ForeignKeyValue="Name"></GridForeignColumn>
+            <GridColumn Field=@nameof(Publication.ServiceDateStart) HeaderText="Início" Width="200px">
+                <Template>
+                    @{
+                        var publication = (context as Publication);
+                        string text = "";
+                        if (publication.ServiceDateStart.HasValue){
+                            text = publication.ServiceDateStart.Value.ToString();
+                        }
+                        else{
+                            text = "Sem data definida";
+                        }
+                        <div>
+                            @text
+                        </div>
+                    }
+                </Template>
+            </GridColumn>
+            <GridColumn HeaderText="Duração" Width="125px">
+                <Template>
+                    @{
+                        var publication = (context as Publication);
+                        string duratonText = "";
+                        if (publication.ServiceDateStart.HasValue){
+                            var dateEnd = (DateTime)publication.ServiceDateEnd;
+                            var dateStart = (DateTime)publication.ServiceDateStart;
+                            var duration = "";
+                            var fullDays = (dateEnd.Date - dateStart.Date).Days;
+                            if (fullDays < 1){
+                                var hours = (dateEnd - dateStart).Hours;
+                                duratonText = hours + " horas";
+                            }
+                            else{
+                                duratonText = fullDays + " dias";
+                            }
+                        }
+                        else{
+                            duratonText = "N/A";
+                        }
+                        <div>
+                            @duratonText
+                        </div>
+                    }
+                </Template>
+            </GridColumn>
+        </GridColumns>
+        <GridTemplates>
+            <DetailTemplate>
+                @{
+                    var publication = (context as Publication);
+                }
+                <div class="NMS-datatable-detail-container">
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Título</span>
+                        <span>@publication?.Title</span>
+                    </div>
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Distrito</span>
+                        <span>@publication.County.District.Name</span>
+                    </div>
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Descrição</span>
+                        <span>@publication?.Content</span>
+                    </div>
+                    <div class="NMS-datatable-detail-buttons">
+                        <button class="btn btn-success btn-sm" @onclick="() => ToggleVisibilityPublicationPopup(publication)">Efetuar proposta</button>
+                        <button class="btn btn-secondary btn-sm" @onclick="() => OpenChat(publication.ClientUserId)">Contactar cliente</button>
+                    </div>
+                </div>
+            </DetailTemplate>
+        </GridTemplates>
+    </SfGrid>
+    @if (IsVisiblePublicationPopup)
+    {
+    <ProjetoFinal.Web.Blazor.Shared.Components.Proposal.FormProposalPopup @bind-IsVisible="@IsVisiblePublicationPopup"
+                                                                          @bind-IsVisible:event="IsVisibleChanged"
+                                                                          Publication="@PublicationForPopup">
+    </ProjetoFinal.Web.Blazor.Shared.Components.Proposal.FormProposalPopup>
+    }
+    <LockUI IsVisible="@IsVisibleLocker"></LockUI>
+    @if (IsVisibleError)
+    {
+        <ErrorPopup errorList="errorList" @bind-IsVisible="@IsVisibleError" @bind-IsVisible:event="IsVisibleChanged"></ErrorPopup>
+    }
+    @if (IsVisibleSuccess)
+    {
+        <SuccessPopup Message="Publicação encerrada com sucesso!" @bind-IsVisible="@IsVisibleSuccess" @bind-IsVisible:event="IsVisibleChanged"></SuccessPopup>
+    }
+</div>
+
+@code {
+    private RowDirection rowRenderingMode = RowDirection.Horizontal;
+
+    public async Task LoadHandler(object args)
+    {
+        if (await JsRuntime.InvokeAsync<bool>("isMobile"))
+            rowRenderingMode = RowDirection.Vertical;
+    }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+    private HttpClient mainHttpClient = null!;
+    private PfaDbContext dbContext = default!;
+    private IQueryable<Publication> publications = default!;
+    private IQueryable<County> counties = default!;
+    private IQueryable<District> districts = default!;
+    private IQueryable<Category> categories = default!;
+    private IQueryable<Participant> participants = default!;
+    private string loggedUserId { get; set; }
+
+    // Grid properties
+    private bool allowManage = false;
+    //private List<string> gridToolbar = new List<string>() { };
+
+
+    private bool IsVisiblePublicationPopup { get; set; } = false;
+    private Publication PublicationForPopup { get; set; } = null;
+    private void ToggleVisibilityPublicationPopup(Publication p)
+    {
+        PublicationForPopup = p;
+        IsVisiblePublicationPopup = !IsVisiblePublicationPopup;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialise context
+        dbContext = await DbFactory.CreateDbContextAsync();
+        publications = dbContext.Publications.AsNoTracking();
+        counties = dbContext.Counties.AsNoTracking();
+        districts = dbContext.Districts.AsNoTracking();
+        categories = dbContext.Categories.AsNoTracking();
+        participants = dbContext.Participants.AsNoTracking();
+
+        // Create HttpClient
+        mainHttpClient = httpUtilities.CreateUserClient("Main");
+
+        // Find logged usre Id
+        loggedUserId = (await authenticationStateTask).User.FindFirstValue("sub");
+    }
+
+    public void ActionFailureHandler(Syncfusion.Blazor.Grids.FailureEventArgs args)
+    {
+    //
+    }
+
+    //Counties
+    private County GetCounty(int CountyId)
+    {
+        County county = counties.First<County>(x => x.Id == CountyId);
+        return county;
+    }
+
+    //Categories
+    private async Task<Category> GetCategory(int CategoryId)
+    {
+        Category category = await categories.FirstAsync<Category>(x => x.Id == CategoryId);
+        return category;
+    }
+
+    //Districts
+    private District GetDistrict(int DistrictId)
+    {
+        District d = districts.First<District>(x => x.Id == DistrictId);
+        return d;
+    }
+
+    private async void OpenChat(string contactId)
+    {
+        errorList = new();
+
+        List<Participant> loggedUserConversations = participants.Where(x => x.UserId == loggedUserId).ToList();
+        List<Participant> otherUserConversations = participants.Where(x => x.UserId == contactId).ToList();
+        Participant result = null;
+
+        if (loggedUserConversations.Count > 0 && otherUserConversations.Count > 0)
+        {
+            try
+            {
+                foreach (Participant p in otherUserConversations)
+                {
+                    result = loggedUserConversations.Find(x => x.ConversationId == p.ConversationId);
+                    if (result != null) break;
+                }
+            }
+            catch
+            {
+                addErrorToList("Erro do servidor. Tente novamente mais tarde (Código A1)");
+                ToggleVisibilityError();
+                return;
+            }
+        }
+
+        if (result == null)
+        {
+            //criar conversa
+            var response1 = await mainHttpClient.PostAsync($"/messaging/conversations?title=wtv", null);
+            if (response1.IsSuccessStatusCode)
+            {
+                ToggleVisibilitySuccess();
+            }
+            else if ((int)response1.StatusCode == 401)
+            {
+                addErrorToList("Erro do servidor. Atualize a página");
+                ToggleVisibilityError();
+                return;
+            }
+            else
+            {
+                addErrorToList("Erro do servidor. Tente novamente mais tarde (Código R1)");
+                ToggleVisibilityError();
+                return;
+            }
+            Conversation newConv = await response1.Content.ReadFromJsonAsync<Conversation>();
+
+            //adicionar utilizador 1
+            var response2 = await mainHttpClient.PostAsync($"/messaging/conversations/{newConv.Id}/participants?userId={loggedUserId}", null);
+            if (response2.IsSuccessStatusCode)
+            {
+                ToggleVisibilitySuccess();
+            }
+            else if ((int)response2.StatusCode == 401)
+            {
+                addErrorToList("Erro do servidor. Atualize a página");
+                ToggleVisibilityError();
+                return;
+            }
+            else
+            {
+                addErrorToList("Erro do servidor. Tente novamente mais tarde (Código R2)");
+                ToggleVisibilityError();
+                return;
+            }
+
+            //adicionar utilizador 2
+            var response3 = await mainHttpClient.PostAsync($"/messaging/conversations/{newConv.Id}/participants?userId={contactId}", null);
+            if (response3.IsSuccessStatusCode)
+            {
+                ToggleVisibilitySuccess();
+            }
+            else if ((int)response3.StatusCode == 401)
+            {
+                addErrorToList("Erro do servidor. Atualize a página");
+                ToggleVisibilityError();
+                return;
+            }
+            else
+            {
+                addErrorToList("Erro do servidor. Tente novamente mais tarde (Código R3)");
+                ToggleVisibilityError();
+                return;
+            }
+        }
+
+        navigationManager.NavigateTo("/messages");
+    }
+
+    //locker
+    private bool IsVisibleLocker { get; set; } = false;
+
+    private void ToggleVisibilityLocker()
+    {
+        IsVisibleLocker = !IsVisibleLocker;
+    }
+
+    //Error popup modal control
+    private List<string> errorList = new();
+    public bool IsVisibleError { get; set; } = false;
+    private void ToggleVisibilityError()
+    {
+        IsVisibleError = !IsVisibleError;
+    }
+    private void addErrorToList(string errorMessage)
+    {
+        errorList.Add(errorMessage);
+    }
+
+    //Success popup modal control
+    public bool IsVisibleSuccess { get; set; } = false;
+    private void ToggleVisibilitySuccess()
+    {
+        IsVisibleSuccess = !IsVisibleSuccess;
+    }
+}

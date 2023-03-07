@@ -1,0 +1,158 @@
+﻿<form class="popup-form">
+    @ChildContent     
+    @if( showSubmitButton ){
+        <div class="form-field">
+            <button @onclick:preventDefault @onclick="@WasClicked">Submeter</button>
+        </div>
+    }
+</form>
+
+<style>
+    form.popup-form{
+        border-radius: 20px;
+        background-color: white;
+        width: 100%;
+        display: grid;
+        margin-bottom: 50px;
+    }
+    .popup-form .form-field{
+        position: relative;
+        padding: 10px;
+        border-bottom: gray solid 1px;
+        display:grid;
+        grid-template-columns: 0 100%;
+        place-items: center;
+        min-height: 60px;
+    }
+
+
+    .popup-form .form-field:last-child {
+        border-bottom: none;
+        grid-template-columns: 1fr;
+    }
+    .popup-form .form-field>label{
+        position: relative;
+        text-align: right;
+        color: white;
+        font-size: 20px;
+        margin-left: -40px;
+        transform: translateX(-50%);
+    }
+    .popup-form .form-field>input{
+        text-align: center;
+        width: 100%;
+        font-size: 18px;
+    }
+
+    .popup-form .form-field>textarea {
+        text-align: left;
+        width: 100%;
+        font-size: 18px;
+        padding: 0 5px;
+        resize: none;
+    }
+
+    .popup-form .form-field .form-field-attach {
+        grid-column:span 2;
+        width: 100%;
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        padding: 10px 3px 0 3px;
+        gap: 10px;
+    }
+    .popup-form .form-field .form-field-attach>label {
+        width: max-content;
+    }
+    .popup-form .form-field .form-field-attach>input {
+        border: solid 1px #ced4da;
+        border-radius: 5px;
+        padding: 0 5px;
+        overflow: scroll;
+    }
+
+    .popup-form .form-field button {
+        text-align: center;
+        width: 100%;
+        font-weight: 600;
+        font-size: 20px;
+    }
+
+    .popup-form .form-field button:hover {
+        font-weight: 700;
+    }
+
+    .popup-form.notification-window-container{
+        direction: initial;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+        padding: 20px;
+        width: 80vw;
+        max-width: 800px;
+        overflow:visible;
+        height: max-content;
+        max-height: max-content;
+    }
+    .popup-form .notification-header{
+        width: 100%;
+        position: relative;
+    }
+    .popup-form .notification-close-btn {
+        position: absolute;
+        left: calc(0% - 10px);
+        top: calc(50% - 15px);
+        font-size: 30px;
+        cursor: pointer;
+        color: white;
+    }
+    .popup-form .notification-title{
+        color: white;
+        text-align: center;
+        margin: 0 0 0 0;
+        width: 100%;
+    }
+    .popup-form .notification-window-content{
+        overflow-y:scroll;
+        height: max-content;
+        max-height: max-content;
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+        width: 100%;
+        overflow: visible;
+    }
+
+    @@media only screen and (max-width : 1200px){
+        .popup-form .form-field {
+            grid-template-columns: 1fr;
+        }
+
+            .popup-form .form-field > label {
+                position: relative;
+                text-align: center;
+                color: black;
+                font-size: 20px;
+                margin: 0 0 10px 0;
+                transform: translateX(0);
+            }
+    }
+    
+</style>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> FormSubmitted { get; set; }
+
+    [Parameter]
+    public bool showSubmitButton { get; set; } = true;
+
+    internal async Task WasClicked()
+    {
+        await FormSubmitted.InvokeAsync();
+    }
+}

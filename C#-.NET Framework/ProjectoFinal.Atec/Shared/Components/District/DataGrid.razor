@@ -1,0 +1,66 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using ProjetoFinal.Migrations
+@using ProjetoFinal.Models.Postal
+@inject IAuthorizationService AuthorizationService
+@inject HttpUtilities httpUtilities
+@inject IDbContextFactory<PfaDbContext> DbFactory
+@inject IJSRuntime JsRuntime
+@inject SyncfusionDatabaseUtilities syncfusionUtilities
+
+<SfGrid DataSource="@districts" TValue="District" AllowSorting="true" AllowFiltering="true" AllowPaging="true" Toolbar="@gridToolbar" RowRenderingMode="@rowRenderingMode" EnableAdaptiveUI="true">
+    <GridEvents OnActionBegin="@ActionBeginHandler" OnLoad="@LoadHandler" TValue="District" />
+    <GridPageSettings PageSize="25" />
+    <GridEditSettings AllowAdding="@allowManage" AllowEditing="@allowManage" AllowDeleting="@allowManage" Mode="EditMode.Normal" />
+    <GridColumns>
+        <GridColumn Field="@nameof(District.Id)" Visible="false" />
+        <GridColumn Field="@nameof(District.Name)" FilterSettings="@(new FilterSettings{ Operator = Operator.Contains })" />
+    </GridColumns>
+</SfGrid>
+
+<div style="display:none;">
+    <SfGrid DataSource="@districts" TValue="District" AllowSorting="true" AllowFiltering="true" AllowPaging="true" Toolbar="@gridToolbar" RowRenderingMode="@rowRenderingMode" EnableAdaptiveUI="true">
+        <GridEvents OnActionBegin="@ActionBeginHandler" OnLoad="@LoadHandler" TValue="District" />
+        <GridPageSettings PageSize="25" />
+        <GridEditSettings AllowAdding="@allowManage" AllowEditing="@allowManage" AllowDeleting="@allowManage" Mode="EditMode.Dialog" />
+        <GridColumns>
+        </GridColumns>
+    </SfGrid>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+    private HttpClient mainHttpClient = null!;
+
+    // Grid properties
+    private bool allowManage = false;
+    private List<string> gridToolbar = new List<string>() { };
+    private RowDirection rowRenderingMode = RowDirection.Horizontal;
+    private IQueryable<District> districts = default!;
+    private PfaDbContext dbContext = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialise context
+        dbContext = await DbFactory.CreateDbContextAsync();
+        districts = dbContext.Districts.AsNoTracking();
+
+        // Add CRUD commands if user has permissions.
+        if ((await AuthorizationService.AuthorizeAsync((await authenticationStateTask).User, "district.manage")).Succeeded)
+        {
+            gridToolbar.AddRange(new List<string> { "Add", "Edit", "Delete" });
+            allowManage = true;
+        }
+    }
+
+    public async Task ActionBeginHandler(ActionEventArgs<District> args)
+    {
+        await syncfusionUtilities.SyncfusionDatabaseActionAsync(args.Data, args.Action);
+    }
+
+    public async Task LoadHandler(object args)
+    {
+        if (await JsRuntime.InvokeAsync<bool>("isMobile"))
+            rowRenderingMode = RowDirection.Vertical;
+    }
+}

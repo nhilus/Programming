@@ -1,0 +1,15 @@
+﻿<div class="main-content-component content-container">
+    @ChildContent
+</div>
+
+<style>
+    .main-content-component.content-container{
+        max-width: 1200px;
+        height: 100%;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

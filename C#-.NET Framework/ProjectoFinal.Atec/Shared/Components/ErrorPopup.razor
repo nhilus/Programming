@@ -1,0 +1,61 @@
+﻿<Modal @bind-IsVisible="@IsVisible" @bind-IsVisible:event="IsVisibleChanged" HasStyledContainer="true">
+    <div style="padding-top: 20px">
+        <div style="display:grid;place-items:center;width:100%;color:red">
+            <i class="fa-solid fa-triangle-exclamation anim-tilting"></i>
+        </div>
+        <div class="error-popup-container">
+            @foreach (string error in errorList)
+            {
+                <h5 class="error-text">@error</h5>
+            }
+        </div>
+    </div>
+</Modal>
+
+<style>
+    .error-popup-container{
+        display: grid;
+        place-items: center;
+        margin: 10px;
+        padding: 10px;
+    }
+
+    .error-popup-container>h5 {
+        width: 100%;
+        color: darkred;
+        padding-bottom: 10px;
+        border-bottom: solid lightgray 1px;
+        text-align: center;
+    }
+
+    .error-popup-container > h5:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+</style>
+
+@code {
+    private bool _isVisible;
+    [Parameter]
+    public bool IsVisible
+    {
+        get => _isVisible;
+        set
+        {
+            if (_isVisible == value) return;
+            _isVisible = value;
+            IsVisibleChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    private void ToggleVisibility()
+    {
+        IsVisible = !IsVisible;
+    }
+
+    [Parameter]
+    public List<string> errorList { get; set; }
+}

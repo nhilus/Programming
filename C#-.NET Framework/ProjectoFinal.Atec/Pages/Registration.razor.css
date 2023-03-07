@@ -1,0 +1,67 @@
+﻿#registration-page {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-rows: 1fr;
+    align-items: center;
+}
+
+#registration-page .registration-content {
+    display: flex;
+    flex-direction: column;
+    gap: 100px;
+    margin: 50px 0;
+}
+
+#registration-page .registration-cards-container {
+    width: max-content;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 50px;
+}
+
+#registration-page h1 {
+    text-align: center;
+}
+
+#registration-page .card {
+    height: 350px;
+    border-radius: 50px;
+    display: grid;
+    grid-template-rows: 200px 1fr;
+    box-shadow: var(--bs-card-border-color) 0 0 3px 1px;
+    cursor: pointer;
+    transition: 0.5s;
+}
+
+    #registration-page .card:hover {
+        transform: scale(1.05);
+        transition: 0.5s;
+    }
+
+#registration-page .icon-container {
+    height: 100%;
+    width: 100%;
+    display: grid;
+    place-items: center;
+}
+
+    #registration-page .icon-container .icon-wrapper {
+        width: max-content;
+        border: var(--bs-card-border-width) solid var(--bs-card-border-color);
+        border-radius: 100%;
+        padding: 15px;
+    }
+
+#registration-page .card .card-text {
+    text-align: center;
+}
+
+@media only screen and (min-width: 1200px) {
+    #registration-page .registration-cards-container {
+        flex-direction: row;
+        gap: 100px;
+    }
+}

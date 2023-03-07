@@ -1,0 +1,115 @@
+﻿@page "/";
+
+@using ProjetoFinal.Web.Blazor.Identity
+@using ProjetoFinal.Web.Blazor.Shared.Components
+@using ProjetoFinal.Web.Blazor.Shared.Components.MainContainer
+@using ProjetoFinal.Web.Blazor.Shared.Components.Search
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using IdentityModel.AspNetCore.AccessTokenManagement
+@inject IUserAccessTokenStore userAccessTokenStore
+@using System.Security.Claims;
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IAuthorizationService AuthorizationService
+@inject NavigationManager navigationManager
+@inject ITokenProvider tokenProvider
+
+<PageTitle>NoMoreSelfies</PageTitle>
+
+<div class="content-inner">
+    <ProjetoFinal.Web.Blazor.Shared.Components.HeroBanner />
+    <MainContainer>
+        <AuthorizeView>
+            <Authorized>
+                @if (!hasToken) {
+                    isLoggedIn = true;
+                }
+                <div class="master-container">
+                    <AuthorizeView Policy="isProviderApproved">
+                        <Authorized Context="indexProvider">
+                            @if(isProvider){
+                                <h1 class="page-title">Pesquisa de publicações</h1>
+                                <SearchProvider></SearchProvider>
+                            }
+                        </Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Policy="isClient">
+                        <Authorized Context="indexClient">
+                            <h1 class="page-title">Fornecedores de serviços</h1>
+                            <SearchClient></SearchClient>
+                        </Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Policy="isAdmin">
+                        <Authorized Context="indexProvider">
+                            <div style="font-family:MuseoModerno; padding-top:50px;">
+                                <h1 class="page-title">Benvindo Administrador!</h1>
+                            </div>
+                        </Authorized>
+                    </AuthorizeView>
+                </div>
+                @if (isProvider && !isActiveProvider)
+                {
+                    <ProjetoFinal.Web.Blazor.Shared.Components.PendingAccount.ProviderAccountPendingIndex />
+                }
+            </Authorized>
+            <NotAuthorized>
+                <ProjetoFinal.Web.Blazor.Shared.Components.Login.AnonymousIndexRatins></ProjetoFinal.Web.Blazor.Shared.Components.Login.AnonymousIndexRatins>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MainContainer>    
+</div>
+
+<style>
+    .contentIndex{
+        display:flex;
+        flex-wrap:wrap;
+        justify-content: center;
+        align-items: center;
+        margin:30px;
+        gap:30px;
+    }
+    .content-inner{
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+</style>
+
+@code{
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+    private ClaimsPrincipal loggedUser { get; set; }
+    private bool hasToken { get; set; } = false;
+    private bool isLoggedIn { get; set; } = false;
+    private string token { get; set; }
+    private bool isClient { get; set; }
+    private bool isProvider { get; set; }
+    private bool isActiveProvider { get; set; }
+    private bool isAdmin { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        loggedUser = (await authenticationStateTask).User;
+        token = await getToken();
+        hasToken = (token != null);
+
+        // Find if cliente, provider pending or active provider
+
+        isClient = (await AuthorizationService.AuthorizeAsync((await authenticationStateTask).User, "isClient")).Succeeded;
+
+        isProvider = (await AuthorizationService.AuthorizeAsync((await authenticationStateTask).User, "isProvider")).Succeeded;
+
+        isActiveProvider = (await AuthorizationService.AuthorizeAsync((await authenticationStateTask).User, "isProviderApproved")).Succeeded;
+
+        isAdmin = (await AuthorizationService.AuthorizeAsync((await authenticationStateTask).User, "isProviderApproved")).Succeeded;
+    }
+
+    protected override void OnAfterRender(bool firstRender) {
+        if (!hasToken && isLoggedIn) navigationManager.NavigateTo("/redirect");
+    }
+
+    private async Task<string> getToken()
+    {
+        return tokenProvider.AccessToken;
+    }
+}

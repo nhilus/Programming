@@ -1,0 +1,16 @@
+﻿.floating-notif {
+    display: none;
+    position: absolute;
+    border-radius: 50%;
+    background-color: red;
+    top: 0;
+    left: 100%;
+    width: 8px;
+    height: 8px;
+    box-shadow: rgb(0, 0, 0, 50) 0 0 1px 1px;
+    transform: translate(-20%, 50%);
+}
+
+.show-notif{
+    display: block;
+}

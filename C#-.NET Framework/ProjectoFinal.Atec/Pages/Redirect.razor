@@ -1,0 +1,21 @@
+﻿@page "/redirect"
+
+@using System.Threading;
+@inject NavigationManager navigationManager
+
+<ProjetoFinal.Web.Blazor.Shared.Components.LockUI IsVisible="true"></ProjetoFinal.Web.Blazor.Shared.Components.LockUI>
+
+@code {
+    protected override async Task OnInitializedAsync(){
+
+    }
+    protected override void OnAfterRender(bool firstRender)
+    {
+        navigate();
+    }
+
+    async Task navigate(){
+        await Task.Delay(2800);
+        navigationManager.NavigateTo("/", forceLoad: true);
+    }
+}

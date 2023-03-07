@@ -1,0 +1,31 @@
+﻿<Modal IsVisible="@IsVisible" PreventClick="true" HasStyledContainer="true">
+    <div class="locker-popup-container">
+        <i class="fa-solid fa-spinner anim-spinner"></i>
+        <h5>Aguarde...</h5>
+    </div>
+</Modal>
+
+<style>
+    .locker-popup-container {
+        display: grid;
+        place-items: center;
+        margin: 10px;
+        padding: 10px;
+        gap: 20px;
+    }
+
+        .locker-popup-container > i {
+        font-size: 40px;
+    }
+
+        .locker-popup-container > h5 {
+        width: 100%;
+        padding-bottom: 10px;
+        text-align: center;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+}

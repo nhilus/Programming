@@ -1,0 +1,279 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using ProjetoFinal.Migrations
+@using ProjetoFinal.Models.Message
+@using ProjetoFinal.Models.Notification
+@using ProjetoFinal.Models.Service
+@using ProjetoFinal.Models.Postal
+@using ProjetoFinal.Models.Config
+@using ProjetoFinal.Models.Provider
+@using ProjetoFinal.Web.Blazor.Data
+@using ProjetoFinal.Web.Blazor.Services
+@using ProjetoFinal.Web.Blazor.Shared.Components
+@using System.Security.Claims
+
+@inject IAuthorizationService AuthorizationService
+@inject HttpUtilities httpUtilities
+@inject SyncfusionDatabaseUtilities syncfusionUtilities
+@inject IDbContextFactory<PfaDbContext> DbFactory
+@inject NavigationManager navigationManager
+@inject NotificationService notificationService
+@inject IJSRuntime JsRuntime
+
+<div>
+    <SfTab @bind-SelectedItem="SelectedTab">
+        <TabEvents Selected="Selected" />
+        <TabItems>
+            @{
+                String[] tabHeaders = { "Todos", "Em revisão" };
+            }
+            @foreach (String tabHeader in tabHeaders)
+            {
+                <TabItem>
+                    <ChildContent>
+                        <TabHeader Text="@tabHeader" />
+                    </ChildContent>
+                </TabItem>
+            }
+        </TabItems>
+    </SfTab>
+    <SfGrid DataSource="@GridData" TValue="ProfileReview" AllowFiltering="false" AllowSorting="true" AllowPaging="true" class="NMS-datatable" RowRenderingMode="@rowRenderingMode" EnableAdaptiveUI="true">
+        <GridEvents OnLoad="@LoadHandler" OnActionFailure="ActionFailureHandler" TValue="ProfileReview"></GridEvents>
+        <GridPageSettings PageSizes="true" PageSize="25" />
+        <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.CheckBox" />
+        <GridColumns>
+            <GridColumn Field=@nameof(ProfileReview.Name) HeaderText="Nome"></GridColumn>
+            <GridColumn HeaderText="Estado" TextAlign="TextAlign.Center" Width="100px" AllowSorting="false">
+                <Template>
+                    @{
+                        var profile = (context as ProfileReview);
+                        int status = getStatus(profile);
+                    }
+                    <span class="publication-status-color-@status">@(getStatusText(status))</span>
+                </Template>
+            </GridColumn>
+        </GridColumns>
+        <GridTemplates>
+            <DetailTemplate>
+                @{
+                    var profileReview = (context as ProfileReview);
+                }
+                <div class="NMS-datatable-detail-container">
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Descrição</span>
+                        <span>@profileReview.Content</span>
+                    </div>
+                    <div class="NMS-datatable-detail-buttons">
+                        @if (getStatus(profileReview) == 1)
+                        {
+                            <button class="btn btn-success btn-sm" @onclick="() => ApproveProfile(profileReview)">Aprovar conta</button>
+                            <button class="btn btn-danger btn-sm" @onclick="() => RejectProfile(profileReview)">Rejeitar conta</button>
+                        }
+                        <a class="btn btn-outline-secondary btn-sm" href="/profilepage/@profileReview.ProfileId">Visitar perfil</a>
+                    </div>
+                </div>
+            </DetailTemplate>
+        </GridTemplates>
+    </SfGrid>
+    <LockUI IsVisible="@IsVisibleLocker"></LockUI>
+    @if (IsVisibleError)
+    {
+        <ErrorPopup errorList="errorList" @bind-IsVisible="@IsVisibleError" @bind-IsVisible:event="IsVisibleChanged"></ErrorPopup>
+    }
+    @if (IsVisibleSuccess)
+    {
+        <SuccessPopup Message="Publicação encerrada com sucesso!" @bind-IsVisible="@IsVisibleSuccess" @bind-IsVisible:event="IsVisibleChanged"></SuccessPopup>
+    }
+</div>
+
+@code {
+    private RowDirection rowRenderingMode = RowDirection.Horizontal;
+
+    public async Task LoadHandler(object args)
+    {
+        if (await JsRuntime.InvokeAsync<bool>("isMobile"))
+            rowRenderingMode = RowDirection.Vertical;
+    }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+    private HttpClient mainHttpClient = null!;
+    private PfaDbContext dbContext = default!;
+    private IQueryable<ProfileReview> profiles = default!;
+    private IQueryable<County> counties = default!;
+    private IQueryable<District> districts = default!;
+    private IQueryable<Category> categories = default!;
+    private List<ProfileReview> profilesList = new();
+    private List<ProfileReview> GridData = new();
+    private string loggedUserId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialise context
+        dbContext = await DbFactory.CreateDbContextAsync();
+        profiles = dbContext.ProfileReview.AsNoTracking();
+        counties = dbContext.Counties.AsNoTracking();
+        districts = dbContext.Districts.AsNoTracking();
+        categories = dbContext.Categories.AsNoTracking();
+
+        // Create HttpClient
+        mainHttpClient = httpUtilities.CreateUserClient("Main");
+
+        // Find logged usre Id
+        loggedUserId = (await authenticationStateTask).User.FindFirstValue("sub");
+
+        RefreshData();
+    }
+
+    private void GetData()
+    {
+        profilesList = profiles.ToList();
+    }
+
+    private void BuildData()
+    {
+        //1 em revisao - 0 todas
+        switch (SelectedTab)
+        {  
+            case 1:{
+                    GridData = profilesList.Where(x => x.IsClosed == false).ToList();
+                    break;
+                }
+            default:{
+                    GridData = profilesList.ToList();
+                    break;
+                }
+        }
+    }
+
+    private void RefreshData()
+    {
+        GetData();
+        BuildData();
+    }
+
+    private int getStatus(ProfileReview p)
+    {
+        //1 em revisão, 4 aceite, 3 rejeitada
+        if (p.IsClosed == false) return 1;
+        if (p.IsApproved) return 4;
+        else return 3;
+    }
+
+    private string getStatusText(int status)
+    {
+        switch (status)
+        {
+            case 1:
+                return "Em revisão"; break;
+            case 3:
+                return "Rejeitada"; break;
+            case 4:
+                return "Aprovada"; break;
+            default:
+                break;
+        }
+        return "";
+    }
+
+
+    public void ActionFailureHandler(Syncfusion.Blazor.Grids.FailureEventArgs args)
+    {
+        //
+    }
+
+    //tabs
+    private int SelectedTab { get; set; }
+    private void Selected(Syncfusion.Blazor.Navigations.SelectEventArgs args)
+    {
+        BuildData();
+    }
+
+    //locker
+    private bool IsVisibleLocker { get; set; } = false;
+
+    private void ToggleVisibilityLocker()
+    {
+        IsVisibleLocker = !IsVisibleLocker;
+    }
+
+    //Error popup modal control
+    private List<string> errorList = new();
+    public bool IsVisibleError { get; set; } = false;
+    private void ToggleVisibilityError()
+    {
+        IsVisibleError = !IsVisibleError;
+    }
+    private void addErrorToList(string errorMessage)
+    {
+        errorList.Add(errorMessage);
+    }
+
+    //Success popup modal control
+    public bool IsVisibleSuccess { get; set; } = false;
+    private void ToggleVisibilitySuccess()
+    {
+        IsVisibleSuccess = !IsVisibleSuccess;
+    }
+
+    private string FetchUserName(string userId)
+    {
+        Task<string> userNameTask = mainHttpClient.GetFromJsonAsync<string>($"/users/{userId}/name");
+        return userNameTask.Result.ToString();
+    }
+
+    private async Task ApproveProfile(ProfileReview p)
+    {
+        ToggleVisibilityLocker();
+        StateHasChanged();
+
+        var response = await mainHttpClient.PostAsync($"/providers/profiles/reviews/{p.Id}/approve?decision=true", null);
+        if (response.IsSuccessStatusCode)
+        {
+            RefreshData();
+            notificationService.SendAsync(new Notification(p.ProfileId, "ProfileReviewApproved", "Perfil aprovado",
+                $"Alterações aprovadas pelo administrador.")
+            );
+        }
+        else if ((int)response.StatusCode == 401)
+        {
+            addErrorToList("Erro do servidor. Atualize a página");
+            ToggleVisibilityError();
+        }
+        else
+        {
+            addErrorToList("Erro do servidor. Tente novamente mais tarde");
+            ToggleVisibilityError();
+        }
+
+        ToggleVisibilityLocker();
+        StateHasChanged();
+    }
+
+    private async Task RejectProfile(ProfileReview p)
+    {
+        ToggleVisibilityLocker();
+        StateHasChanged();
+
+        var response = await mainHttpClient.PostAsync($"/providers/profiles/reviews/{p.Id}/approve?decision=false", null);
+        if (response.IsSuccessStatusCode)
+        {
+            RefreshData();
+            notificationService.SendAsync(new Notification(p.ProfileId, "ProfileReviewRejected", "Perfil rejeitado",
+                $"Alterações rejeitadas pelo administrador por falta de informação ou conteúdo impróprio. Pode submeter novo pedido de alterações.")
+            );
+        }
+        else if ((int)response.StatusCode == 401)
+        {
+            addErrorToList("Erro do servidor. Atualize a página");
+            ToggleVisibilityError();
+        }
+        else
+        {
+            addErrorToList("Erro do servidor. Tente novamente mais tarde");
+            ToggleVisibilityError();
+        }
+
+        ToggleVisibilityLocker();
+        StateHasChanged();
+    }
+}

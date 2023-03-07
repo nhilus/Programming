@@ -1,0 +1,182 @@
+﻿@using ProjetoFinal.Models.Notification
+@using ProjetoFinal.Models.Postal
+@using ProjetoFinal.Models.Service
+@using ProjetoFinal.Models.Config
+@using ProjetoFinal.Models.Provider
+@using ProjetoFinal.Web.Blazor.Data
+@using ProjetoFinal.Web.Blazor.Services
+@using ProjetoFinal.Web.Blazor.Shared
+@using ProjetoFinal.Migrations
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+
+@inject NavigationManager navigationManager
+@inject IAuthorizationService AuthorizationService
+@inject HttpUtilities httpUtilities
+@inject SyncfusionDatabaseUtilities syncfusionUtilities
+@inject IDbContextFactory<PfaDbContext> DbFactory
+@inject NotificationService notificationService
+
+<div>
+    <Modal @bind-IsVisible="@IsVisible" @bind-IsVisible:event="IsVisibleChanged" HasStyledContainer="false" PreventExitOnOutsideClick="false">
+        <div class="notification-window-container" id="client-publication-form">
+            <div class="notification-header">
+                @*Close button*@
+                <span class="notification-close-btn e-icons e-close" @onclick="ToggleVisibility"></span>
+                @*Title*@
+                <h1 class="notification-title">Avaliar serviço</h1>
+            </div>
+            @*Content*@
+            <div class="notification-window-content">
+                <Form FormSubmitted="FormSubmitted">
+                    <div class="form-field">
+                        <label>Avaliação:</label>
+                        <MudRating ReadOnly="false" @bind-SelectedValue="@RatingValue" MaxValue="5" Size="Size.Medium" />
+                    </div>
+                    <div class="form-field">
+                        <label>Descrição:</label>
+                        <textarea name="description"
+                                rows="5"
+                                placeholder="Comente a sua experiência"
+                                @bind="RatingComment"></textarea>
+                    </div>
+                </Form>
+            </div>
+        </div>
+    </Modal>
+    <ErrorPopup errorList="errorList" @bind-IsVisible="@IsVisibleError" @bind-IsVisible:event="IsVisibleChanged"></ErrorPopup>
+    <SuccessPopup Message="Avaliação submetida!" @bind-IsVisible="@IsVisibleSuccess" @bind-IsVisible:event="IsVisibleChanged"></SuccessPopup>
+    <LockUI IsVisible="@IsVisibleLocker"></LockUI>
+</div>
+
+<style>
+    
+</style>
+
+@code {
+    [Parameter]
+    public ProposalIds ProposalData { get; set; }
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+    private HttpClient mainHttpClient = null!;
+    private PfaDbContext dbContext = default!;
+    private IQueryable<Rating> ratings = default!;
+    private string loggedUserId { get; set; }
+
+    private bool _isVisible;
+    [Parameter]
+    public bool IsVisible
+    {
+        get => _isVisible;
+        set
+        {
+            if (_isVisible == value) return;
+            _isVisible = value;
+            IsVisibleChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    private void ToggleVisibility()
+    {
+        IsVisible = !IsVisible;
+    }
+
+    protected override async void OnInitialized()
+    {
+        dbContext = await DbFactory.CreateDbContextAsync();
+        ratings = dbContext.Ratings.AsNoTracking();
+    }
+
+    //UI Locker popup modal control
+    public bool IsVisibleLocker { get; set; } = false;
+
+    private void ToggleLocker()
+    {
+        IsVisibleLocker = !IsVisibleLocker;
+        StateHasChanged();
+    }
+
+    //Error popup modal control
+    private List<string> errorList = new();
+
+    public bool IsVisibleError { get; set; } = false;
+
+    private void ToggleVisibilityError()
+    {
+        IsVisibleError = !IsVisibleError;
+        StateHasChanged();
+    }
+
+    //Success popup modal control
+
+    public bool _isVisibleSuccess { get; set; }
+    public bool IsVisibleSuccess { get; set; }
+
+    private void ToggleVisibilitySuccess()
+    {
+        IsVisibleSuccess = !IsVisibleSuccess;
+        StateHasChanged();
+    }
+
+    //Form Values
+    private int RatingValue { get; set; }
+    private string RatingComment { get; set; }
+
+    //Form submission
+    private async void FormSubmitted()
+    {
+        ToggleLocker();
+        StateHasChanged();
+
+        bool IsSuccessful = await submitRating();
+        if (IsSuccessful)
+        {
+            ToggleVisibilitySuccess();
+        }
+        else ToggleVisibilityError();
+
+        ToggleLocker();
+        StateHasChanged();
+        return;
+    }
+
+    private async Task<bool> submitRating()
+    {
+        errorList = new();
+
+        Rating newRating = new(
+            ProposalData.ProviderId,
+            ProposalData.PublicationId,
+            RatingValue,
+            RatingComment
+        );
+
+        dbContext.Ratings.Add(newRating);
+        try
+        {
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception)
+        {
+            addErrorToList("Erro de ligação ao servidor, tente novamente mais tarde");
+            return false;
+        }
+
+        notificationService.SendAsync(new Notification(ProposalData.ProviderId, "NewRating", "Nova avaliação",
+            $"{ProposalData.ClientName} avaliou-o em {RatingValue} estrelas!")
+        );
+
+        ToggleVisibility();
+
+        return true;
+    }
+
+    private void addErrorToList(string errorMessage)
+    {
+        errorList.Add(errorMessage);
+    }
+}
+

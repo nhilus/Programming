@@ -1,0 +1,410 @@
+﻿@using ProjetoFinal.Models.Notification
+@using ProjetoFinal.Models.Postal
+@using ProjetoFinal.Models.Service
+@using ProjetoFinal.Models.Config
+@using ProjetoFinal.Web.Blazor.Data
+@using ProjetoFinal.Web.Blazor.Services
+@using ProjetoFinal.Web.Blazor.Shared
+@using ProjetoFinal.Migrations
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+
+@inject NavigationManager navigationManager
+@inject IAuthorizationService AuthorizationService
+@inject HttpUtilities httpUtilities
+@inject SyncfusionDatabaseUtilities syncfusionUtilities
+@inject IDbContextFactory<PfaDbContext> DbFactory
+@inject NotificationService notificationService
+
+<div>
+    <Modal @bind-IsVisible="@IsVisible" @bind-IsVisible:event="IsVisibleChanged" HasStyledContainer="false" PreventExitOnOutsideClick="true">
+        <div class="notification-window-container" id="client-publication-form">
+            <div class="notification-header">
+                @*Close button*@
+                <span class="notification-close-btn e-icons e-close" @onclick="ToggleVisibility"></span>
+                @*Title*@
+                <h1 class="notification-title">Criar nova publicação</h1>
+            </div>
+            @*Content*@
+            <div class="notification-window-content">
+                <Form FormSubmitted="FormSubmitted">
+                    <div class="form-field">
+                        <label>Título:</label>
+                        <input 
+                            type="text" 
+                            name="name" 
+                            id="form-name" 
+                            placeholder="Breve descrição do que pretende"
+                            required
+                            @bind="FormTitle" />
+                    </div>
+                    <div class="form-field">
+                        <label>Categoria:</label>
+                        <SfDropDownList 
+                            TItem="Category" 
+                            TValue="int?" 
+                            PopupHeight="350px" 
+                            Placeholder="Selecione uma categoria" 
+                            DataSource="@categories" 
+                            @bind-Value="@SelectedCategory"
+                            >
+                            <DropDownListFieldSettings Text="Name" Value="Id" />
+                        </SfDropDownList>
+                    </div>
+                    <div class="form-field">
+                        <label>Distrito:</label>
+                        <SfDropDownList 
+                            TItem="District" 
+                            TValue="int?" 
+                            PopupHeight="350px" 
+                            Placeholder="Selecione um distrito" 
+                            DataSource="@districts" 
+                            @bind-Value="@SelectedDistrict"
+                            >
+                            <DropDownListFieldSettings Text="Name" Value="Id" />
+                        </SfDropDownList>
+                    </div>              
+                    <div class="form-field">
+                        <label>Concelho:</label>
+                        <SfDropDownList 
+                            TItem="County" 
+                            TValue="int?" 
+                            PopupHeight="350px" 
+                            Placeholder="Selecione um concelho" 
+                            DataSource="@LocationsInDisctricts" 
+                            @bind-Value="@SelectedLocation"
+                            Readonly="@(LocationsInDisctricts.Count == 0)"
+                            >
+                            <DropDownListFieldSettings Text="Name" Value="Id" />
+                        </SfDropDownList>
+                    </div>
+                    <div class="form-field">
+                        <label></label>
+                        <div>
+                            <SfCheckBox @bind-Checked="@isDateOptionChecked"></SfCheckBox> Tem data definida?
+                        </div>
+                    </div>
+                    @if(isDateOptionChecked == true){
+                        <div class="form-field">
+                            <label>Início:</label>
+                            <div>
+                                <SfDatePicker 
+                                    TValue="DateTime?" 
+                                    Placeholder="Selecione uma data" 
+                                    ShowClearButton="true" 
+                                    @bind-Value="@SelectedDate"
+                                />
+                                <SfTimePicker 
+                                    TValue="DateTime?" 
+                                    ShowClearButton="true" 
+                                    @bind-Value="@SelectedTime" 
+                                />
+                            </div>
+                        </div>
+                        <div class="form-field">
+                            <label>Duração:</label>
+                            <div class="form-field-attach">
+                                <label>Dias</label>
+                                <input type="text" @bind-value="@SelectedDuration.Days" class="small-input"/>
+                                <label>Horas</label>
+                                <input type="text" @bind-value="@SelectedDuration.Hours" class="small-input"/>
+                            </div>
+                        </div>
+                    }
+                    <div class="form-field">
+                        <label>Descrição:</label>
+                        <textarea 
+                            name="description" 
+                            rows="5" 
+                            placeholder="Descrição detalhada do que pretende. Pode indicar o local exato do evento ou qual o equipamento necessário para o mesmo. Seja o mais específico possível!"
+                            required
+                            @bind="FormDescription"
+                        ></textarea>
+                    </div>
+                </Form>
+            </div>
+        </div>
+    </Modal>
+    <ErrorPopup errorList="errorList" @bind-IsVisible="@IsVisibleError" @bind-IsVisible:event="IsVisibleChanged"></ErrorPopup>
+    <SuccessPopup Message="Publicação criada!" @bind-IsVisible="@IsVisibleSuccess" @bind-IsVisible:event="IsVisibleChanged"></SuccessPopup>
+    <LockUI IsVisible="@IsVisibleLocker"></LockUI>
+</div>
+
+<style>
+    #client-publication-form .form-field .form-field-attach {
+        grid-column: span 1;
+        width: max-content;
+        display: grid;
+        grid-template-columns: auto auto;
+        padding: 0 3px;
+    }
+    #client-publication-form .form-field .form-field-attach>label {
+        place-self: end;
+    }
+    #client-publication-form .form-field .form-field-attach>input {
+        width: 100px;
+        place-self: left;
+        text-align: center;
+    }
+</style>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+    private HttpClient mainHttpClient = null!;
+    private PfaDbContext dbContext = default!;
+    private string loggedUserId { get; set; }
+
+    List<County> locations { get; set; }
+    List<District> districts { get; set; }
+    List<Category> categories { get; set; }
+
+    private IQueryable<Publication> publications = default!;
+
+    private bool _isVisible;
+    [Parameter]
+    public bool IsVisible
+    {
+        get => _isVisible;
+        set
+        {
+            if (_isVisible == value) return;
+            _isVisible = value;
+            IsVisibleChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    private void ToggleVisibility()
+    {
+        IsVisible = !IsVisible;
+    }
+
+    protected override async void OnInitialized()
+    {
+        IsVisible = true;
+
+        mainHttpClient = httpUtilities.CreateUserClient("Main");
+
+        dbContext = await DbFactory.CreateDbContextAsync();
+        publications = dbContext.Publications.AsNoTracking();
+
+        loggedUserId = (await authenticationStateTask).User.FindFirstValue("sub");
+
+        Counties newCou = new Counties();
+        await newCou.FetchCounties(mainHttpClient);
+        locations = newCou.CountiesList;
+
+        Districts newDis = new Districts();
+        await newDis.FetchDistricts(mainHttpClient);
+        districts = newDis.DistrictsList;
+
+        Categories newCat = new Categories();
+        await newCat.FetchCategories(mainHttpClient);
+        categories = newCat.CategoriesList;
+
+        ToggleLocker();
+    }
+
+    //UI Locker popup modal control
+    public bool IsVisibleLocker { get; set; } = true;
+
+    private void ToggleLocker()
+    {
+        IsVisibleLocker = !IsVisibleLocker;
+        StateHasChanged();
+    }
+
+    //Error popup modal control
+    private List<string> errorList = new();
+
+    public bool IsVisibleError { get; set; } = false;
+
+    private void ToggleVisibilityError()
+    {
+        IsVisibleError = !IsVisibleError;
+    }
+
+    //Success popup modal control
+
+    private bool IsFormSubmitted { get; set; } = false;
+    public bool _isVisibleSuccess { get; set; }
+    public bool IsVisibleSuccess
+    {
+        get => _isVisibleSuccess;
+        set
+        {
+            if (_isVisibleSuccess == value) return;
+            if (!value) ToggleFormOnSuccess();
+            _isVisibleSuccess = value;
+        }
+    }
+
+    private void ToggleFormOnSuccess()
+    {
+        if (IsFormSubmitted) ToggleVisibility();
+    }
+
+    private void ToggleVisibilitySuccess()
+    {
+        IsVisibleSuccess = !IsVisibleSuccess;
+        StateHasChanged();
+    }
+
+    //Form Values
+    private string FormTitle { get; set; }
+    private string FormDescription { get; set; }
+
+    private bool isDateOptionChecked { get; set; } = false;
+
+    private DateTime? SelectedDate { get; set; } = DateTime.Now;
+    private DateTime? SelectedTime { get; set; } = DateTime.Now;
+
+    private class SelectedDurationClass
+    {
+        public int Days { get; set; } = 0;
+        public int Hours { get; set; } = 0;
+        public bool IsSelected()
+        {
+            return (Days > 0 || Hours > 0);
+        }
+    }
+    private SelectedDurationClass SelectedDuration = new();
+
+    //categories --
+    private int? SelectedCategory { get; set; }
+    List<Category> Categories = new Categories().GetCategories();
+
+    //locations --
+    //districts
+    private int? _selectedDistrict { get; set; }
+    private int? SelectedDistrict {
+        get => _selectedDistrict;
+        set
+        {
+            if (_selectedDistrict == value) return;
+            if (value == null) SelectedLocation = null;
+            _selectedDistrict = value;
+            GetCountiesInDistricts();
+        }
+    }
+
+    //counties
+    private int? SelectedLocation { get; set; }
+    //// All locations
+
+    //// Locations filtered by selected district
+    List<County> LocationsInDisctricts = new();
+    private List<County> GetCountiesInDistricts()
+    {
+        if (SelectedDistrict == null) LocationsInDisctricts = new();
+        else LocationsInDisctricts = locations.FindAll(IsInDistricts);
+
+        return LocationsInDisctricts;
+    }
+    private bool IsInDistricts(County county)
+    {
+        if (SelectedDistrict == county.DistrictId) return true;
+        return false;
+    }
+
+    //Form submission
+    private async void FormSubmitted()
+    {
+        ToggleLocker();
+        StateHasChanged();
+
+        bool IsSuccessful = await submitPublication();
+        if (IsSuccessful)
+        {
+            IsFormSubmitted = true;
+            ToggleVisibilitySuccess();
+        }
+        else ToggleVisibilityError();
+
+        ToggleLocker();
+        StateHasChanged();
+        return;
+    }
+
+    private async Task<bool> submitPublication(){
+        errorList = new();
+        if (!verifyEmptyString(FormTitle)) addErrorToList("Título inválido!");
+        if (!verifyEmptyString(FormDescription)) addErrorToList("Descrição inválida!");
+        if (!verifySelectionEmpty(SelectedCategory)) addErrorToList("Selecione uma categoria!");
+        if (!verifySelectionEmpty(SelectedLocation)) addErrorToList("Selecione um concelho!");
+
+        if(isDateOptionChecked) {
+            if (!verifyDate()) addErrorToList("Data inválida!");
+        }
+
+        if (errorList.Count > 0) return false;
+
+        Publication newPublication = new(
+            loggedUserId,
+            FormTitle,
+            FormDescription,
+            (int)SelectedCategory,
+            (int)SelectedLocation
+        );
+
+        if (isDateOptionChecked)
+        {
+
+            DateTime _dateStart = new DateTime(SelectedDate.Value.Ticks).AddHours(SelectedTime.Value.Hour).AddMinutes(SelectedTime.Value.Minute);
+            newPublication.ServiceDateStart = new DateTime(_dateStart.Ticks);
+            newPublication.ServiceDateEnd = new DateTime(
+                _dateStart
+                    .AddDays(SelectedDuration.Days)
+                    .AddHours(SelectedDuration.Hours)
+                    .Ticks
+            );
+        }
+
+        //HttpResponseMessage responsePublication = await mainHttpClient.PostAsJsonAsync<Publication>($"/publications", null);
+        //if (responsePublication.IsSuccessStatusCode) return true;
+        //else {
+        //    addErrorToList("Não foi possível contactar com o servidor. Tente mais tarde.");
+        //    return false;
+        //}
+
+        dbContext.Publications.Add(newPublication);
+        try
+        {
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception)
+        {
+            addErrorToList("Erro de ligação ao servidor, tente novamente mais tarde");
+            return false;
+        }
+
+        notificationService.SendAsync(new Notification(loggedUserId, "NewPublication", "Publicação em revisão",
+            $"'{FormTitle}' encontra-se em aprovação. Irá receber uma notificação com a decisão.")
+        );
+
+        return true;
+    }
+
+    private void addErrorToList(string errorMessage)
+    {
+        errorList.Add(errorMessage);
+    }
+
+    private bool verifyEmptyString(string st){
+        return !(st == null || st.Length == 0);
+    }
+
+    private bool verifyDate()
+    {
+        int res = DateTime.Compare(new DateTime(SelectedDate.Value.Ticks), DateTime.Now);
+        return res >= 0;
+    }
+
+    private bool verifySelectionEmpty(int? num){
+        return !(num == null);
+    }
+}
+

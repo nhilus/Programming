@@ -1,0 +1,27 @@
+﻿.proposal-status-container {
+    display: flex;
+    justify-content: center;
+    padding-right: 18px;
+}
+
+.proposal-status {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+}
+
+.proposal-status-color-1 {
+    background-color: lightgreen;
+}
+
+.proposal-status-color-2 {
+    background-color: khaki;
+}
+
+.proposal-status-color-3 {
+    background-color: lightblue;
+}
+
+.proposal-status-color-4 {
+    background-color: indianred;
+}

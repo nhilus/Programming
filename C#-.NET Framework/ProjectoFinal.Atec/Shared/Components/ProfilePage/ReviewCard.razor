@@ -1,0 +1,82 @@
+﻿@{
+    <div class="control-section">
+        <div class="row">
+            <div>
+                <SfCard ID="ReviewCard">
+                    <CardHeader Title="@Nome" SubTitle="@Localizacao" />
+                    <MudRating ReadOnly="true" SelectedValue="@Valor" />
+                    <CardContent Content="@Comentario" />
+                </SfCard>
+            </div>
+        </div>
+    </div>
+}
+@code {
+    string CardSubTitle = "@harrisburg_keith";
+
+    [Parameter]
+    public string Nome { get; set; }
+    [Parameter]
+    public string Localizacao { get; set; }
+    [Parameter]
+    public int Valor { get; set; }
+    [Parameter]
+    public string Comentario { get; set; }
+
+    [Parameter]
+    public EventCallback<string> NomeChanged { get; set; }
+    [Parameter]
+    public EventCallback<string> LocalizacaoChanged { get; set; }
+    [Parameter]
+    public EventCallback<int> ValorChanged { get; set; }
+    [Parameter]
+    public EventCallback<string> ComentarioChanged { get; set; }
+
+
+
+}
+<style>
+
+    #ReviewCard {
+        text-align: center;
+        width:250px;
+        height:250px;
+        border: 5px solid darkgrey;
+        border-radius:25px;
+        gap:40px;
+        margin-top:20px;
+        margin-bottom:20px;
+        margin-left:10px;
+        margin-right:10px;
+    }
+
+    #Card_Third {
+        margin-top: 8%;
+    }
+
+    .ChatIcon {
+        height: 24px;
+        width: 24px;
+    }
+
+    .AlarmIcon {
+        height: 24px;
+        width: 24px;
+    }
+
+    .StarIcon {
+        height: 24px;
+        width: 24px;
+    }
+
+    .row {
+        margin: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    table {
+        width: 60%
+    }
+</style>

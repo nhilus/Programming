@@ -1,0 +1,28 @@
+﻿@page "/test"
+
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Navigations
+@using Syncfusion.Blazor.Grids
+
+<SfTab LoadOn="ContentLoad.Dynamic" @bind-SelectedItem="@SelectedTab">
+    <TabItems>
+        <TabItem>
+            <HeaderTemplate>Login</HeaderTemplate>
+            <ContentTemplate>
+               <ProfileCarousel/>
+            </ContentTemplate>
+        </TabItem>
+        <TabItem>
+            <ContentTemplate>
+                <ProfileCarousel />
+            </ContentTemplate>
+        </TabItem>
+    </TabItems>
+</SfTab>
+
+@code {
+
+    private Boolean DisableTab { get; set; } = true;
+    private Boolean Disabled { get; set; } = false;
+    private int SelectedTab { get; set; } = 0;
+}

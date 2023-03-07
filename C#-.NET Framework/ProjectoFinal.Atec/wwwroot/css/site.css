@@ -1,0 +1,223 @@
+@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
+
+:root{
+    --primarycolor: #171717;
+    --secondarycolor: #303030;
+}
+
+html, body {
+    font-family: Roboto, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: black;
+    overflow-x: clip;
+}
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #26b050;
+}
+
+.invalid {
+    outline: 1px solid red;
+}
+
+.validation-message {
+    color: red;
+}
+
+#blazor-error-ui {
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: 0.75rem;
+        top: 0.5rem;
+    }
+
+/* Overrides */
+/* #region Navbar */
+
+    .nav-link {
+        padding: 0 !important;
+        position: relative;
+    }
+
+    .nav-link.active {
+        text-decoration: underline;
+    }
+
+    .mud-overlay{
+        background-color:red;
+    }
+
+.mud-tab.mud-tab-active {
+    color: var(--primarycolor) !important;
+}
+
+.mud-tab-slider {
+    background-color: var(--primarycolor) !important;
+}
+
+.NMS-datatable{
+    box-shadow: 0px 0px 2px 0px gray;
+}
+
+.NMS-datatable tr.e-row {
+    min-height: 50px;
+}
+
+.NMS-datatable td.e-detailcell {
+    padding: 10px 5px;
+    background-color: #f8f9fa;
+}
+.NMS-datatable-detail-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 5px;
+}
+
+.NMS-datatable-detail-title {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.NMS-datatable-detail-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.NMS-datatable-detail-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+@media only screen and (max-width: 1200px) {
+    .NMS-datatable-detail-buttons {
+        flex-direction: column;
+    }
+}
+
+.NMS-datatable-detail-multiple {
+    padding: 5px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+    .NMS-datatable-detail-multiple > span {
+        padding: 5px 8px;
+        border: solid lightgray 1px;
+        border-radius: 5px;
+    }
+
+.notification-window-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+    padding: 20px;
+    width: 80vw;
+    max-width: 800px;
+}
+
+.notification-header {
+    width: 100%;
+    position: relative;
+}
+
+.notification-close-btn {
+    position: absolute;
+    left: calc(0% - 10px);
+    top: calc(50% - 15px);
+    font-size: 30px;
+    cursor: pointer;
+    color: white;
+}
+
+.notification-title {
+    color: white;
+    text-align: center;
+    margin: 0 0 0 0;
+    width: 100%;
+}
+
+.notification-window-content {
+    max-height: 500px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.master-container {
+    padding: 25px 0;
+    display: flex;
+    flex-flow: column;
+    gap: 25px;
+}
+
+.page-title {
+    width: 100%;
+    text-align: center;
+}
+
+.publication-status-color-1 {
+    color: darkorange;
+}
+
+.publication-status-color-2 {
+    color: darkgreen;
+}
+
+.publication-status-color-3 {
+    color: darkred;
+}
+
+.publication-status-color-4 {
+    color: darkslategray;
+}
+
+/*ANIMS*/
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.anim-spinner {
+    animation: spin 1.5s linear infinite;
+}
+
+@-webkit-keyframes tilting {
+    from {
+        -webkit-transform: rotate(-20deg);
+    }
+
+    to {
+        -webkit-transform: rotate(20deg);
+    }
+}
+
+.anim-tilting {
+    font-size: 50px;
+    animation-name: tilting;
+    animation-iteration-count: infinite;
+    animation-duration: 1.5s;
+    animation-timing-function: ease-in-out;
+    animation-direction: alternate;
+}

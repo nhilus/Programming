@@ -1,0 +1,370 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using ProjetoFinal.Migrations
+@using ProjetoFinal.Models.Message
+@using ProjetoFinal.Models.Notification
+@using ProjetoFinal.Models.Service
+@using ProjetoFinal.Models.Postal
+@using ProjetoFinal.Models.Config
+@using ProjetoFinal.Models.Provider
+@using ProjetoFinal.Web.Blazor.Data
+@using ProjetoFinal.Web.Blazor.Services
+@using ProjetoFinal.Web.Blazor.Shared.Components
+@using System.Security.Claims
+
+@inject IAuthorizationService AuthorizationService
+@inject HttpUtilities httpUtilities
+@inject SyncfusionDatabaseUtilities syncfusionUtilities
+@inject IDbContextFactory<PfaDbContext> DbFactory
+@inject NavigationManager navigationManager
+@inject NotificationService notificationService
+@inject IJSRuntime JsRuntime
+
+<div>
+    <SfTab @bind-SelectedItem="SelectedTab">
+        <TabEvents Selected="Selected" />
+        <TabItems>
+            @{
+                String[] tabHeaders = { "Todas (Mais recentes primeiro)", "Em revisão (Mais antigas primeiro)" };
+            }
+            @foreach (String tabHeader in tabHeaders)
+            {
+                <TabItem>
+                    <ChildContent>
+                        <TabHeader Text="@tabHeader" />
+                    </ChildContent>
+                </TabItem>
+            }
+        </TabItems>
+    </SfTab>
+    <SfGrid DataSource="@GridData" TValue="Publication" AllowFiltering="false" AllowSorting="true" AllowPaging="true" class="NMS-datatable" RowRenderingMode="@rowRenderingMode" EnableAdaptiveUI="true">
+        <GridEvents OnLoad="@LoadHandler" OnActionFailure="ActionFailureHandler" TValue="Publication"></GridEvents>
+        <GridPageSettings PageSizes="true" PageSize="25" />
+        <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.CheckBox" />
+        <GridColumns>
+            <GridColumn Field=@nameof(Publication.Title) HeaderText="Título"></GridColumn>
+            <GridColumn Field=@nameof(Publication.ServiceDateStart) HeaderText="Data" Width="200px">
+                <Template>
+                    @{
+                        var publication = (context as Publication);
+                        string dateText = "";
+                        if (publication.ServiceDateStart.HasValue)
+                        {
+                            dateText = publication.ServiceDateStart.Value.ToString();
+                        }
+                        else
+                        {
+                            dateText = "Sem data definida";
+                        }
+                    }
+                    <div>@dateText</div>
+                </Template>
+            </GridColumn>
+            <GridColumn HeaderText="Estado" TextAlign="TextAlign.Center" Width="100px" AllowSorting="false">
+                <Template>
+                    @{
+                        var publication = (context as Publication);
+                        int status = getStatus(publication);
+                    }
+                    <span class="publication-status-color-@status">@(getStatusText(status))</span>
+                </Template>
+            </GridColumn>
+        </GridColumns>
+        <GridTemplates>
+            <DetailTemplate>
+                @{
+                    var publication = (context as Publication);
+                }
+                <div class="NMS-datatable-detail-container">
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Cliente</span>
+                        <span>@FetchUserName(publication.ClientUserId)</span>
+                    </div>
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Título</span>
+                        <span>@publication?.Title</span>
+                    </div>
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Descrição</span>
+                        <span>@publication?.Content</span>
+                    </div>
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Distrito</span>
+                        <span>@publication.County.District.Name</span>
+                    </div>
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Concelho</span>
+                        <span>@publication.County.Name</span>
+                    </div>
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Categoria</span>
+                        <span>@publication.Category.Name</span>
+                    </div>
+                    @{
+                        string duratonText = "";
+                        if (publication.ServiceDateStart.HasValue)
+                        {
+                            var dateEnd = (DateTime)publication.ServiceDateEnd;
+                            var dateStart = (DateTime)publication.ServiceDateStart;
+                            var duration = "";
+                            var fullDays = (dateEnd.Date - dateStart.Date).Days;
+                            if (fullDays < 1)
+                            {
+                                var hours = (dateEnd - dateStart).Hours;
+                                duratonText = hours + " horas";
+                            }
+                            else
+                            {
+                                duratonText = fullDays + " dias";
+                            }
+                        }
+                        else
+                        {
+                            duratonText = "N/A";
+                        }
+                    }
+                    <div class="NMS-datatable-detail-text">
+                        <span class="NMS-datatable-detail-title">Duração</span>
+                        <span>@duratonText</span>
+                    </div>
+                    <div class="NMS-datatable-detail-buttons">
+                        @if (!publication.IsReviewed)
+                        {
+                            <button class="btn btn-success btn-sm" @onclick="() => ApprovePublication(publication)">Aprovar publicação</button>
+                            <button class="btn btn-danger btn-sm" @onclick="() => RejectPublication(publication)">Rejeitar publicação</button>
+                        }
+                        else if (getStatus(publication) == 2)
+                        {
+                            <button class="btn btn-outline-danger btn-sm" @onclick="() => ClosePublication(publication)">Encerrar publicação</button>
+                        }
+                    </div>
+                </div>
+            </DetailTemplate>
+        </GridTemplates>
+    </SfGrid>
+    <LockUI IsVisible="@IsVisibleLocker"></LockUI>
+    @if (IsVisibleError)
+    {
+        <ErrorPopup errorList="errorList" @bind-IsVisible="@IsVisibleError" @bind-IsVisible:event="IsVisibleChanged"></ErrorPopup>
+    }
+    @if (IsVisibleSuccess)
+    {
+        <SuccessPopup Message="Publicação encerrada com sucesso!" @bind-IsVisible="@IsVisibleSuccess" @bind-IsVisible:event="IsVisibleChanged"></SuccessPopup>
+    }
+</div>
+
+
+@code {
+    private RowDirection rowRenderingMode = RowDirection.Horizontal;
+
+    public async Task LoadHandler(object args)
+    {
+        if (await JsRuntime.InvokeAsync<bool>("isMobile"))
+            rowRenderingMode = RowDirection.Vertical;
+    }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+    private HttpClient mainHttpClient = null!;
+    private PfaDbContext dbContext = default!;
+    private IQueryable<Publication> publications = default!;
+    private IQueryable<County> counties = default!;
+    private IQueryable<District> districts = default!;
+    private IQueryable<Category> categories = default!;
+    private IQueryable<Participant> participants = default!;
+    private List<Publication> publicationList = new();
+    private List<Publication> GridData = new();
+    private string loggedUserId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialise context
+        dbContext = await DbFactory.CreateDbContextAsync();
+        publications = dbContext.Publications.AsNoTracking();
+        counties = dbContext.Counties.AsNoTracking();
+        districts = dbContext.Districts.AsNoTracking();
+        categories = dbContext.Categories.AsNoTracking();
+        participants = dbContext.Participants.AsNoTracking();
+
+        // Create HttpClient
+        mainHttpClient = httpUtilities.CreateUserClient("Main");
+
+        // Find logged usre Id
+        loggedUserId = (await authenticationStateTask).User.FindFirstValue("sub");
+
+        RefreshData();
+    }
+
+    private void GetData()
+    {
+        publicationList = publications.Include(x => x.Category).Include(x => x.County).ThenInclude(x => x.District).ToList();
+    }
+
+    private void BuildData(bool filter){
+        if (filter) GridData = publicationList.Where(x => x.IsReviewed == false).OrderBy(x => x.Id).ToList();
+        else GridData = publicationList.OrderByDescending(x => x.Id).ToList();
+    }
+
+    private void RefreshData(){
+        GetData();
+        BuildData((SelectedTab == 1));
+    }
+
+    private int getStatus(Publication p)
+    {
+        //1 em revisão, 2 em aberto, 3 rejeitada, 4 concluida
+        if (p.IsReviewed == false) return 1;
+        if (p.IsApproved)
+        {
+            if (p.IsPublished) return 2;
+            else return 4;
+        }
+        else return 3;
+    }
+    
+    private string getStatusText(int status)
+    {
+        switch (status)
+        {
+            case 1:
+                return "Em revisão"; break;
+            case 2:
+                return "Ativa"; break;
+            case 3:
+                return "Rejeitada"; break;
+            case 4:
+                return "Concluida"; break;
+            default:
+                break;
+        }
+        return "";
+    }
+
+
+    public void ActionFailureHandler(Syncfusion.Blazor.Grids.FailureEventArgs args)
+    {
+    //
+    }
+
+    //tabs
+    private int SelectedTab { get; set; }
+    private void Selected(Syncfusion.Blazor.Navigations.SelectEventArgs args)
+    {
+        BuildData((SelectedTab == 1));
+    }
+
+    //locker
+    private bool IsVisibleLocker { get; set; } = false;
+
+    private void ToggleVisibilityLocker()
+    {
+        IsVisibleLocker = !IsVisibleLocker;
+    }
+
+    //Error popup modal control
+    private List<string> errorList = new();
+    public bool IsVisibleError { get; set; } = false;
+    private void ToggleVisibilityError()
+    {
+        IsVisibleError = !IsVisibleError;
+    }
+    private void addErrorToList(string errorMessage)
+    {
+        errorList.Add(errorMessage);
+    }
+
+    //Success popup modal control
+    public bool IsVisibleSuccess { get; set; } = false;
+    private void ToggleVisibilitySuccess()
+    {
+        IsVisibleSuccess = !IsVisibleSuccess;
+    }
+
+    private string FetchUserName(string userId)
+    {
+        Task<string> userNameTask = mainHttpClient.GetFromJsonAsync<string>($"/users/{userId}/name");
+        return userNameTask.Result.ToString();
+    }
+
+    private async Task ApprovePublication(Publication p){
+        ToggleVisibilityLocker();
+        StateHasChanged();
+
+        var response = await mainHttpClient.PostAsync($"/publications/{p.Id}/approve?decision=true", null);
+        if (response.IsSuccessStatusCode)
+        {
+            RefreshData();
+            notificationService.SendAsync(new Notification(p.ClientUserId, "PublicationApproved", "Publicação aprovada", 
+                $"'{p.Title}' foi aprovada.")
+            );
+        }
+        else if ((int)response.StatusCode == 401)
+        {
+            addErrorToList("Erro do servidor. Atualize a página");
+            ToggleVisibilityError();
+        }
+        else
+        {
+            addErrorToList("Erro do servidor. Tente novamente mais tarde");
+            ToggleVisibilityError();
+        }
+        
+        ToggleVisibilityLocker();
+        StateHasChanged();
+    }
+
+    private async Task RejectPublication(Publication p)
+    {
+        ToggleVisibilityLocker();
+        StateHasChanged();
+
+        var response = await mainHttpClient.PostAsync($"/publications/{p.Id}/approve?decision=false", null);
+        if (response.IsSuccessStatusCode)
+        {
+            RefreshData();
+            notificationService.SendAsync(new Notification(p.ClientUserId, "PublicationRejected", "Publicação rejeitada",
+                $"'{p.Title}' foi rejeitada por falta de inforamação ou conteúdo impróprio.")
+            );
+        }
+        else if ((int)response.StatusCode == 401)
+        {
+            addErrorToList("Erro do servidor. Atualize a página");
+            ToggleVisibilityError();
+        }
+        else
+        {
+            addErrorToList("Erro do servidor. Tente novamente mais tarde");
+            ToggleVisibilityError();
+        }
+        
+        ToggleVisibilityLocker();
+        StateHasChanged();
+    }
+
+    private async Task ClosePublication(Publication p)
+    {
+        ToggleVisibilityLocker();
+        StateHasChanged();
+
+        var response = await mainHttpClient.PostAsync($"/publications/{p.Id}/unpublish", null);
+        if (response.IsSuccessStatusCode)
+        {
+            RefreshData();
+            notificationService.SendAsync(new Notification(p.ClientUserId, "PublicationClosed", "Publicação encerrada",
+                $"'{p.Title}' foi encerrada pelo administrador.")
+            );
+        }
+        else if ((int)response.StatusCode == 401)
+        {
+            addErrorToList("Erro do servidor. Atualize a página");
+            ToggleVisibilityError();
+        }
+        else
+        {
+            addErrorToList("Erro do servidor. Tente novamente mais tarde");
+            ToggleVisibilityError();
+        }
+        
+        ToggleVisibilityLocker();
+        StateHasChanged();
+    }
+}

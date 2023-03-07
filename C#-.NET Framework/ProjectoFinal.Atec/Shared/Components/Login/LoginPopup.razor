@@ -1,0 +1,55 @@
+﻿<Modal @bind-IsVisible="@IsVisible">
+    <div class="login-popup-container">
+        <div class="d-grid justify-content-center">
+            <h5 class="login-popup-header">Já tens conta?</h5>
+            <a type="button" class="btn btn-secondary" href="bff/login">Login</a>
+        </div>
+        <div class="d-grid justify-content-center">
+            <h5 class="login-popup-header">Não? Junta-te a nós!</h5>
+            <a type="button" class="btn btn-secondary" href="registration" @onclick="ToggleVisibility">Registo</a>
+        </div>
+    </div>
+</Modal>
+
+<style>
+    .login-popup-container{
+        padding: 30px 20px;
+        width: 300px;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+    }
+    .d-grid{
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .login-popup-header {
+        margin: 0;
+    }
+</style>
+
+
+@code {
+    private bool _isVisible;
+    [Parameter]
+    public bool IsVisible
+    {
+        get => _isVisible;
+        set
+        {
+            if (_isVisible == value) return;
+            _isVisible = value;
+            IsVisibleChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    private void ToggleVisibility()
+    {
+        IsVisible = !IsVisible;
+    }
+}

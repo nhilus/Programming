@@ -1,0 +1,151 @@
+﻿@using ProjetoFinal.Models.Postal
+@using ProjetoFinal.Models.Service
+@using ProjetoFinal.Models.Config
+@using ProjetoFinal.Web.Blazor.Data
+@using ProjetoFinal.Web.Blazor.Shared
+
+@if (Publication != null)
+{
+    <Modal @bind-IsVisible="@IsVisible" @bind-IsVisible:event="IsVisibleChanged" HasStyledContainer="false" PreventExitOnOutsideClick="true">
+        <div class="notification-window-container" id="client-publication-show">
+            <div class="notification-header">
+                @*Close button*@
+                <span class="notification-close-btn e-icons e-close" @onclick="ToggleVisibility"></span>
+                @*Title*@
+                <h1 class="notification-title">Publicação</h1>
+            </div>
+            @*Content*@
+            <div class="notification-window-content">
+                <Form showSubmitButton="false">
+                    <div class="form-field">
+                        <label>Título:</label>
+                        <input type="text"
+                               value="@Publication.Title"
+                               disabled />
+                    </div>
+                    <div class="form-field">
+                        <label>Categoria:</label>
+                        <input type="text"
+                           value="@Publication.Category.Name"
+                               disabled />
+                    </div>
+                    <div class="form-field">
+                        <label>Distrito:</label>
+                        <input type="text"
+                           value="@Publication.County.District.Name"
+                               disabled />
+                    </div>              
+                    <div class="form-field">
+                        <label>Concelho:</label>
+                        <input type="text"
+                           value="@Publication.County.Name"
+                               disabled />
+                    </div>
+                    @if (Publication.ServiceDateStart.HasValue)
+                    {
+                        <div class="form-field">
+                            <label>Início:</label>
+                            <div>
+                                <input type="text"
+                                       value="@Publication.ServiceDateStart.Value"
+                                       disabled 
+                                       style="text-align: center;"/>
+                            </div>
+                        </div>
+                        <div class="form-field">
+                            <label>Duração:</label>
+                            <input type="text"
+                               value="@(GetEventDurationString(Publication.ServiceDateStart, Publication.ServiceDateEnd))"
+                               disabled />
+                        </div>
+                    }
+                    else{
+                        <div class="form-field">
+                            <label></label>
+                            <div>
+                                Sem data definida
+                            </div>
+                        </div>
+                    }
+                    <div class="form-field">
+                        <label>Descrição:</label>
+                        <textarea 
+                            name="description" 
+                            rows="5" 
+                            value="@Publication.Content"
+                            disabled />
+                    </div>
+                    <div class="form-field">
+                        <button class="" @onclick:preventDefault @onclick="ToggleVisibility">Sair</button>
+                    </div>
+                </Form>
+            </div>
+        </div>
+    </Modal>
+}
+
+<style>
+    #client-publication-show .form-field .form-field-attach {
+        grid-column: span 1;
+        width: max-content;
+        display: grid;
+        grid-template-columns: auto auto;
+        padding: 0 3px;
+    }
+    #client-publication-show .form-field .form-field-attach>label {
+        place-self: end;
+    }
+
+    #client-publication-show .form-field .form-field-attach > input {
+        width: 100px;
+        place-self: left;
+        text-align: center;
+        color: black;
+    }
+</style>
+
+@code {
+    private bool _isVisible;
+    [Parameter]
+    public bool IsVisible
+    {
+        get => _isVisible;
+        set
+        {
+            if (_isVisible == value) return;
+            _isVisible = value;
+            IsVisibleChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    private void ToggleVisibility()
+    {
+        IsVisible = !IsVisible;
+    }
+
+    protected override void OnInitialized()
+    {
+        IsVisible = false;
+    }
+    [Parameter]
+    public Publication Publication { get; set; }
+    
+    protected override async Task OnInitializedAsync()
+    {
+        
+    }
+
+    private string GetEventDurationString(DateTime? start, DateTime? end)
+    {
+        int days = (end.Value.Date - start.Value.Date).Days;
+        if (days > 1) return days + " dias";
+        if (days > 0) return days + " dia";
+        int horas = (end.Value - start.Value).Hours;
+        if (horas > 1) return horas + " horas";
+        return horas + " hora";
+    }
+}
+

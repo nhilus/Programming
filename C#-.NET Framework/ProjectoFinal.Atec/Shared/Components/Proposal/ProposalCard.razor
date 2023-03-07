@@ -1,0 +1,19 @@
+﻿<MudCard>
+    <MudCardContent>
+        <div>@Name</div>
+        <div>@Location</div>
+        <div>@ServiceType</div>
+        <div>@Date</div>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter]
+    public string? Name { get; set; }
+    [Parameter]
+    public string? Location { get; set; }
+    [Parameter]
+    public string? ServiceType { get; set; }
+    [Parameter]
+    public string? Date { get; set; }
+}

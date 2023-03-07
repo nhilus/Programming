@@ -1,0 +1,14 @@
+﻿
+<div class="floating-notif @NotificationToggleCssClass" @onclick="ToggleDot" />
+
+@code {
+    [Parameter]
+    public bool HasNotification { get; set; } = true;
+
+    private string? NotificationToggleCssClass => HasNotification ? "show-notif" : null;
+
+    private void ToggleDot()
+    {
+        HasNotification = !HasNotification;
+    }
+}

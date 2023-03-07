@@ -1,0 +1,47 @@
+﻿
+<SfDropDownList TItem="GameFields" TValue="string" PopupHeight="150px" Placeholder="Localização" DataSource="@Games" class="dropdown-container">
+    <DropDownListEvents TItem="GameFields" TValue="string" ValueChange="OnChange" />
+    <DropDownListFieldSettings Text="Text" Value="ID" />
+</SfDropDownList>
+
+<style>
+    .dropdown-container .e-input-group, .dropdown-container .e-input-group.e-control-wrapper {
+        border-radius: 50px;
+    }
+
+    .dropdown-container .e-dropdownbase .e-list-item, .dropdown-container .e-dropdownbase .e-list-item.e-item-focus {
+        border-radius: 50px;
+        transition: all 0.9s ease-in-out 0s, visibility 0s linear 0.9s, z-index 0s linear 0.03s;
+    }
+
+    .dropdown-container .e-ddl.e-input-group input.e-input::placeholder {
+        color: grey;
+    }
+
+</style>
+@code {
+    public class GameFields
+    {
+        public string ID { get; set; }
+        public string Text { get; set; }
+    }
+    private List<GameFields> Games = new List<GameFields>()
+    {
+        new GameFields(){ ID= "Game1", Text= "American Football" },
+        new GameFields(){ ID= "Game2", Text= "Badminton" },
+        new GameFields(){ ID= "Game3", Text= "Basketball" },
+        new GameFields(){ ID= "Game4", Text= "Cricket" },
+        new GameFields(){ ID= "Game5", Text= "Football" },
+        new GameFields(){ ID= "Game6", Text= "Golf" },
+        new GameFields(){ ID= "Game7", Text= "Hockey" },
+        new GameFields(){ ID= "Game8", Text= "Rugby"},
+        new GameFields(){ ID= "Game9", Text= "Snooker" },
+        new GameFields(){ ID= "Game10", Text= "Tennis"}
+     };
+    public string DropDownValue = "Game3";
+    public string ChangeValue { get; set; } = "";
+    public void OnChange(Syncfusion.Blazor.DropDowns.ChangeEventArgs<string, GameFields> args)
+    {
+        this.ChangeValue = args.ItemData.Text;
+    }
+}
